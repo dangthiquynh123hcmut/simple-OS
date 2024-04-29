@@ -2,6 +2,7 @@
 
 #include "bitops.h"
 #include "common.h"
+// #include <pthread.h>
 
 /* CPU Bus definition */
 #define PAGING_CPU_BUS_WIDTH 22 /* 22bit bus - MAX SPACE 4MB */
@@ -66,6 +67,7 @@
 #define SETBIT(v,mask) (v=v|mask)
 #define CLRBIT(v,mask) (v=v&~mask)
 
+//SETVAL(*pte, swptyp, PAGING_PTE_SWPTYP_MASK, PAGING_PTE_SWPTYP_LOBIT);
 #define SETVAL(v,value,mask,offst) (v=(v&~mask)|((value<<offst)&mask))
 #define GETVAL(v,mask,offst) ((v&mask)>>offst)
 
@@ -164,4 +166,7 @@ int print_list_vma(struct vm_area_struct *rg);
 
 int print_list_pgn(struct pgn_t *ip);
 int print_pgtbl(struct pcb_t *ip, uint32_t start, uint32_t end);
+
+// static pthread_mutex_t phy_lock;
+// pthread_mutex_init ? => mem.c
 #endif
