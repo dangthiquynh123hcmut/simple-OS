@@ -93,17 +93,28 @@ int vmap_page_range(struct pcb_t *caller, // process call
 
   ret_rg->rg_end = ret_rg->rg_start = addr; // at least the very first space is usable
 
-  fpit->fp_next = frames;
+  fpit = frames;
 
   /* TODO map range of frame to address space 
    *      [addr to addr + pgnum*PAGING_PAGESZ
    *      in page table caller->mm->pgd[]
    */
-
-   /* Tracking for later page replacement activities (if needed)
+  for(pgit; pgit < pgnum; pgit++) {  
+    pte_set_fpn(&caller->mm->pgd[pgn + pgit], frames->fpn); //truyền tham chiếu
+    if(frames->fp_next != NULL) frames = frames->fp_next;
+    else break;
+    /* Tracking for later page replacement activities (if needed)
     * Enqueue new usage page */
-   enlist_pgn_node(&caller->mm->fifo_pgn, pgn+pgit);
+    enlist_pgn_node(&caller->mm->fifo_pgn, pgn+pgit); 
+    //enlist_pgn_node: đưa từng page vào, pgn+pgit là index của page trong page table
+  }
+  ret_rg->rg_end = addr + pgnum*PAGING_PAGESZ;
 
+  //pthread_mutex_lock(&phy_lock);
+    //frames là tail, fpit là head
+  frames->fp_next = caller->mram->used_fp_list;
+  caller->mram->used_fp_list = fpit;
+  //pthread_mutex_unlock(&phy_lock);
 
   return 0;
 }
@@ -118,14 +129,19 @@ int vmap_page_range(struct pcb_t *caller, // process call
 int alloc_pages_range(struct pcb_t *caller, int req_pgnum, struct framephy_struct** frm_lst)
 {
   int pgit, fpn;
-  //struct framephy_struct *newfp_str;
+  struct framephy_struct *newfp_str;
 
   for(pgit = 0; pgit < req_pgnum; pgit++)
   {
     if(MEMPHY_get_freefp(caller->mram, &fpn) == 0)
    {
-     
+    newfp_str = malloc( sizeof(struct framephy_struct) );
+    newfp_str->fpn = fpn;
+    newfp_str->fp_next = *frm_lst;
+    *frm_lst = newfp_str; //add head
    } else {  // ERROR CODE of obtaining somes but not enough frames
+    if(pgit == 0) return -3000; //Out of memory
+    return -1;
    } 
  }
 
@@ -142,6 +158,7 @@ int alloc_pages_range(struct pcb_t *caller, int req_pgnum, struct framephy_struc
  * @incpgnum  : number of mapped page
  * @ret_rg    : returned region
  */
+//vm_map_ram(caller, area->rg_start, area->rg_end, old_end, incnumpage , newrg) => mm-vm.c line 458
 int vm_map_ram(struct pcb_t *caller, int astart, int aend, int mapstart, int incpgnum, struct vm_rg_struct *ret_rg)
 {
   struct framephy_struct *frm_lst = NULL;
@@ -170,7 +187,7 @@ int vm_map_ram(struct pcb_t *caller, int astart, int aend, int mapstart, int inc
 
   /* it leaves the case of memory is enough but half in ram, half in swap
    * do the swaping all to swapper to get the all in ram */
-  vmap_page_range(caller, mapstart, incpgnum, frm_lst, ret_rg);
+  vmap_page_range(caller, mapstart, incpgnum, frm_lst, ret_rg); //bắt đầu từ mapstart
 
   return 0;
 }
@@ -251,7 +268,7 @@ int enlist_pgn_node(struct pgn_t **plist, int pgn)
 
   pnode->pgn = pgn;
   pnode->pg_next = *plist;
-  *plist = pnode;
+  *plist = pnode; //add head
 
   return 0;
 }
