@@ -11,6 +11,8 @@ static pthread_mutex_t queue_lock;
 
 #ifdef MLQ_SCHED
 static struct queue_t mlq_ready_queue[MAX_PRIO];
+static int mlq_slot_count[MAX_PRIO];
+// array to store the remaining time slot of each queue in mlq ready queue
 #endif
 
 int queue_empty(void) {
@@ -27,8 +29,12 @@ void init_scheduler(void) {
 #ifdef MLQ_SCHED
 	int i ;
 
-	for (i = 0; i < MAX_PRIO; i ++)
+	for (i = 0; i < MAX_PRIO; i ++){
 		mlq_ready_queue[i].size = 0;
+		mlq_ready_queue[i].enqueue_slot = 0;
+		mlq_ready_queue[i].dequeue_slot = 0;
+		mlq_slot_count[i] = MAX_PRIO - i; // init remaining time slot follow MLQ policy
+	}
 #endif
 	ready_queue.size = 0;
 	run_queue.size = 0;
@@ -47,7 +53,27 @@ struct pcb_t * get_mlq_proc(void) {
 	/*TODO: get a process from PRIORITY [ready_queue].
 	 * Remember to use lock to protect the queue.
 	 */
-	proc = dequeue(&mlq_ready_queue[0]);
+	//pthread_mutex_lock(&queue_lock);
+	int i = 0;
+	while (i < MAX_PRIO) {
+		/* loop through each queue in mlq ready queue */
+		if (mlq_slot_count[i] > 0 && mlq_ready_queue[i].size > 0) {
+			// current queue has process and still have time slot, so take it */
+			proc = dequeue(&mlq_ready_queue[i]);
+			mlq_slot_count[i]--;
+			printf("\tGet process with PID: %d from queue: %d\n", proc->pid, i);
+			break;
+		}
+		i++;
+		if (i == MAX_PRIO && queue_empty() == -1) { /* no process taken, check if there is any left in the queue. 
+			If yes, replenish all remaining time slot in each queue (follow MLQ policy), then loop again */
+			for (int j = 0; j < MAX_PRIO;  j++){
+				mlq_slot_count[j] = MAX_PRIO - j;
+			}
+			i = 0;
+		}
+	}
+	//pthread_mutex_unlock(&queue_lock);
 	return proc;	
 }
 
