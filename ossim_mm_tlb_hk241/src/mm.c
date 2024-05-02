@@ -140,14 +140,14 @@ int alloc_pages_range(struct pcb_t *caller, int req_pgnum, struct framephy_struc
       *frm_lst = malloc (sizeof (struct framephy_struct));
       (*frm_lst)->fpn = fpn;
       (*frm_lst)->fp_next = NULL;
-      (*frm_lst)->owner = mm;
+      (*frm_lst)->owner = caller->mm;
     } else {
-      framephy_struct* temp = *frm_lst;
+      struct framephy_struct* temp = *frm_lst;
       while( temp->fp_next ) temp = temp->fp_next;
       temp->fp_next = malloc (sizeof (struct framephy_struct));
       temp->fp_next->fpn = fpn;
       temp->fp_next->fp_next = NULL;
-      temp->fp_next->owner = mm;
+      temp->fp_next->owner = caller->mm;
     }
     
    } else {  // ERROR CODE of obtaining somes but not enough frames
