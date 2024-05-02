@@ -128,17 +128,28 @@ int vmap_page_range(struct pcb_t *caller, // process call
 
 int alloc_pages_range(struct pcb_t *caller, int req_pgnum, struct framephy_struct** frm_lst)
 {
-  int pgit, fpn;
-  struct framephy_struct *newfp_str;
+  if(frm_lst == NULL) return -1;
 
+  int pgit, fpn;
   for(pgit = 0; pgit < req_pgnum; pgit++)
   {
     if(MEMPHY_get_freefp(caller->mram, &fpn) == 0)
    {
-    newfp_str = malloc( sizeof(struct framephy_struct) );
-    newfp_str->fpn = fpn;
-    newfp_str->fp_next = *frm_lst;
-    *frm_lst = newfp_str; //add head
+    //add tail
+    if( *frm_lst == NULL ) {  //list currently empty
+      *frm_lst = malloc (sizeof (struct framephy_struct));
+      (*frm_lst)->fpn = fpn;
+      (*frm_lst)->fp_next = NULL;
+      (*frm_lst)->owner = mm;
+    } else {
+      framephy_struct* temp = *frm_lst;
+      while( temp->fp_next ) temp = temp->fp_next;
+      temp->fp_next = malloc (sizeof (struct framephy_struct));
+      temp->fp_next->fpn = fpn;
+      temp->fp_next->fp_next = NULL;
+      temp->fp_next->owner = mm;
+    }
+    
    } else {  // ERROR CODE of obtaining somes but not enough frames
     if(pgit == 0) return -3000; //Out of memory
     return -1;
