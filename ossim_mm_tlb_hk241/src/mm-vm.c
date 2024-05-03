@@ -100,6 +100,7 @@ int __alloc(struct pcb_t *caller, int vmaid, int rgid, int size, int *alloc_addr
     caller->mm->symrgtbl[rgid].rg_end = areaTemp->sbrk + size;
     *alloc_addr = areaTemp->sbrk;
     areaTemp->sbrk = areaTemp->sbrk + size;
+    return 0;
   }
   
   /*Attempt to increate limit to get space */
