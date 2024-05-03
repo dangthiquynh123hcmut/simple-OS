@@ -25,3 +25,7 @@ void add_proc(struct pcb_t * proc);
 
 #endif
 
+<<<<<<< HEAD
+=======
+
+>>>>>>> 2081b34ac4fbe51c473012a2b4f6e617576e568a
