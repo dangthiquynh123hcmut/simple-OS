@@ -21,6 +21,7 @@ struct pcb_t * dequeue(struct queue_t * q) {
     }
 
     // Find the index of the process with the highest priority
+    //lower, higher
     int highestPriorityIndex = 0;
     for (int i = 1; i < q->size; i++) {
         if (q->proc[i]->prio < q->proc[highestPriorityIndex]->prio) {

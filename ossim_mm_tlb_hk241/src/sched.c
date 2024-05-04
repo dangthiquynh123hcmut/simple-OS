@@ -1,4 +1,3 @@
-
 #include "queue.h"
 #include "sched.h"
 #include <pthread.h>
@@ -27,8 +26,10 @@ void init_scheduler(void) {
 #ifdef MLQ_SCHED
     int i ;
 
-	for (i = 0; i < MAX_PRIO; i ++)
+	for (i = 0; i < MAX_PRIO; i ++) {
 		mlq_ready_queue[i].size = 0;
+		mlq_ready_queue[i].slots = 0;
+	}
 #endif
 	ready_queue.size = 0;
 	run_queue.size = 0;
@@ -43,18 +44,64 @@ void init_scheduler(void) {
  *  State representation   prio = 0 .. MAX_PRIO, curr_slot = 0..(MAX_PRIO - prio)
  */
 
-struct pcb_t * get_mlq_proc(void) {
-    pthread_mutex_lock(&queue_lock);
-    struct pcb_t * proc = NULL;
-    for (unsigned long prio = 0; prio < MAX_PRIO; prio++) {
-        if (!empty(&mlq_ready_queue[prio])) {
-            proc = dequeue(&mlq_ready_queue[prio]);
-            break;
-        }
-    }
+void reset_slots ()
+{
+    unsigned long prio;
+    for (prio = 0; prio < MAX_PRIO; prio++)
+        mlq_ready_queue[prio].slots = 0; // Reset the round-robin counter
+                                         // for each every queue
+}
 
-    pthread_mutex_unlock(&queue_lock);
-    return proc;
+struct pcb_t * get_mlq_proc(void) {
+    // pthread_mutex_lock(&queue_lock);
+    // struct pcb_t * proc = NULL;
+    // for (unsigned long prio = 0; prio < MAX_PRIO; prio++) {
+    //     if (!empty(&mlq_ready_queue[prio])) {
+    //         proc = dequeue(&mlq_ready_queue[prio]);
+    //         break;
+    //     }
+    // }
+
+    // pthread_mutex_unlock(&queue_lock);
+    // return proc;
+
+	struct pcb_t *proc = NULL;
+    if (queue_empty () == 1)
+        return proc;
+
+    int designated_slots;
+	int count = 0;
+    while(count<MAX_PRIO)
+        {
+            designated_slots = MAX_PRIO - count;
+            struct queue_t *priority_queue = &mlq_ready_queue[count];
+            if (priority_queue->size != 0)
+                {
+                    if (priority_queue->slots == designated_slots)
+                        {
+                            count++;
+                            continue;
+                        }
+                    else
+                        {
+                            pthread_mutex_lock (&queue_lock);
+                            //printf("%s", "flag");
+                            proc = dequeue (priority_queue);
+                            priority_queue->slots++;
+                            pthread_mutex_unlock (&queue_lock);
+                            return proc;
+                        }
+                }
+
+            count++;
+
+            if (count == MAX_PRIO) 
+                {
+                    count = 0;
+                    reset_slots ();
+                }
+        }
+	return NULL;
 }
 
 void put_mlq_proc(struct pcb_t * proc) {

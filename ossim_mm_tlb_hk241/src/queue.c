@@ -16,28 +16,37 @@ void enqueue(struct queue_t * q, struct pcb_t * proc) {
 }
 
 struct pcb_t * dequeue(struct queue_t * q) {
-    if (q->size <= 0) {
+    if ( empty(q) ) {
         return NULL; // Queue is empty
     }
 
-    // Find the index of the process with the highest priority
-    int highestPriorityIndex = 0;
-    for (int i = 1; i < q->size; i++) {
-        if (q->proc[i]->prio < q->proc[highestPriorityIndex]->prio) {
-            highestPriorityIndex = i;
-        }
-    }
-
-    // Store the highest priority process
-    struct pcb_t * highest_priority_proc = q->proc[highestPriorityIndex];
-
-    // Shift the remaining processes in the queue
-    for (int i = highestPriorityIndex; i < q->size - 1; i++) {
+    struct pcb_t *newProc = malloc (sizeof (struct pcb_t));
+    newProc = q->proc[0];
+    for (int i = 0; i < q->size; i++)
+    {
         q->proc[i] = q->proc[i + 1];
     }
     q->size--;
+    return newProc;
 
-    return highest_priority_proc;
+    // // Find the index of the process with the highest priority
+    // //lower, higher
+    // int highestPriorityIndex = 0;
+    // for (int i = 1; i < q->size; i++) {
+    //     if (q->proc[i]->prio < q->proc[highestPriorityIndex]->prio) {
+    //         highestPriorityIndex = i;
+    //     }
+    // }
+
+    // // Store the highest priority process
+    // struct pcb_t * highest_priority_proc = q->proc[highestPriorityIndex];
+
+    // // Shift the remaining processes in the queue
+    // for (int i = highestPriorityIndex; i < q->size - 1; i++) {
+    //     q->proc[i] = q->proc[i + 1];
+    // }
+    // q->size--;
+
+    // return highest_priority_proc;
 }
-
 

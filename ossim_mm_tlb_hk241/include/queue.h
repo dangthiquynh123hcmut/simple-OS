@@ -11,6 +11,7 @@ struct queue_t {
 	int size;
 	int enqueue_slot;
 	int dequeue_slot;
+	int slots;
 };
 
 void enqueue(struct queue_t * q, struct pcb_t * proc);
