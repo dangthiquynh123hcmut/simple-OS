@@ -82,8 +82,6 @@ int __alloc(struct pcb_t *caller, int vmaid, int rgid, int size, int *alloc_addr
 {
   /*Allocate at the toproof */
   struct vm_rg_struct rgnode;
-  struct vm_area_struct* areaTemp = get_vma_by_num(caller->mm, vmaid);
-
   if (get_free_vmrg_area(caller, vmaid, size, &rgnode) == 0)
   {
     caller->mm->symrgtbl[rgid].rg_start = rgnode.rg_start;
@@ -95,6 +93,7 @@ int __alloc(struct pcb_t *caller, int vmaid, int rgid, int size, int *alloc_addr
   }
   
   /* TODO get_free_vmrg_area FAILED handle the region management (Fig.6)*/
+  struct vm_area_struct* areaTemp = get_vma_by_num(caller->mm, vmaid);
   if(areaTemp->sbrk + size <= areaTemp->vm_end) {
     caller->mm->symrgtbl[rgid].rg_start = areaTemp->sbrk;
     caller->mm->symrgtbl[rgid].rg_end = areaTemp->sbrk + size;
@@ -105,7 +104,7 @@ int __alloc(struct pcb_t *caller, int vmaid, int rgid, int size, int *alloc_addr
   
   /*Attempt to increate limit to get space */
   struct vm_area_struct *cur_vma = get_vma_by_num(caller->mm, vmaid);
-  int inc_sz = PAGING_PAGE_ALIGNSZ(size);
+  int inc_sz = PAGING_PAGE_ALIGNSZ(size - (areaTemp->vm_end-areaTemp->sbrk));
   //int inc_limit_ret
   int old_sbrk ;
 
@@ -137,15 +136,18 @@ int __alloc(struct pcb_t *caller, int vmaid, int rgid, int size, int *alloc_addr
 
 int __free(struct pcb_t *caller, int vmaid, int rgid)
 {
-  struct vm_rg_struct rgnode;
 
   if(rgid < 0 || rgid > PAGING_MAX_SYMTBL_SZ)
     return -1;
 
   /* TODO: Manage the collect freed region to freerg_list */
-  struct vm_rg_struct temp = *get_symrg_byid(caller->mm, rgid);
-  rgnode.rg_start = temp.rg_start;
-  rgnode.rg_end = temp.rg_end;
+  struct vm_rg_struct* rgnode = malloc( sizeof(struct vm_rg_struct) );
+  struct vm_rg_struct* temp = get_symrg_byid(caller->mm, rgid);
+  rgnode->rg_start = temp->rg_start;
+  rgnode->rg_end = temp->rg_end;
+  
+  temp->rg_start = -1;
+  temp->rg_end = -1;
 
   /*enlist the obsoleted memory region */
   enlist_vm_freerg_list(caller->mm, rgnode);
@@ -483,6 +485,7 @@ int find_victim_page(struct mm_struct *mm, int *retpgn)
     return 0;
   }
 
+  //add head => take tail
   struct pgn_t *prev = mm->fifo_pgn;
   while(pg->pg_next != NULL) {
     prev = pg;

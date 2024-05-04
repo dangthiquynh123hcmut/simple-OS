@@ -114,6 +114,7 @@ int MEMPHY_write(struct memphy_struct * mp, int addr, BYTE data)
  *  MEMPHY_format-format MEMPHY device
  *  @mp: memphy struct
  */
+ //use for init free framephy list in memphy_struct
 int MEMPHY_format(struct memphy_struct *mp, int pagesz)
 {
     /* This setting come with fixed constant PAGESZ */
@@ -145,6 +146,7 @@ int MEMPHY_format(struct memphy_struct *mp, int pagesz)
     return 0;
 }
 
+//get from head of free framephy list
 int MEMPHY_get_freefp(struct memphy_struct *mp, int *retfpn)
 {  
    //pthread_mutex_lock(&memphy_lock);
@@ -200,6 +202,7 @@ int MEMPHY_dump(struct memphy_struct * mp)
     return 0;
 }
 
+//put in head free framephy list
 int MEMPHY_put_freefp(struct memphy_struct *mp, int fpn)
 {
    //pthread_mutex_lock(&memphy_lock);

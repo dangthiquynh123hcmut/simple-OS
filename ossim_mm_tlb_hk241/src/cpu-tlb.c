@@ -121,7 +121,7 @@ BYTE *byte_data = (BYTE *)&data;
  *@destination: index of destination register
  *@offset: destination address = [destination] + [offset]
  */
-int tlbwrite(struct pcb_t * proc, int data,
+int tlbwrite(struct pcb_t * proc, BYTE data,
              uint32_t destination, uint32_t offset)
 {
   int val;
