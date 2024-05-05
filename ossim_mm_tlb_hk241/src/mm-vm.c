@@ -15,18 +15,18 @@
  *
  */
 // add head, add rg_elmt in the head of mm->mmap->vm_freerg_list (vmaid = 0)
-int enlist_vm_freerg_list(struct mm_struct *mm, struct vm_rg_struct rg_elmt)
+int enlist_vm_freerg_list(struct mm_struct *mm, struct vm_rg_struct* rg_elmt)
 {
   struct vm_rg_struct *rg_node = mm->mmap->vm_freerg_list;
 
-  if (rg_elmt.rg_start >= rg_elmt.rg_end)
+  if (rg_elmt->rg_start >= rg_elmt->rg_end)
     return -1;
 
   if (rg_node != NULL)
-    rg_elmt.rg_next = rg_node;
+    rg_elmt->rg_next = rg_node;
 
   /* Enlist the new region */
-  mm->mmap->vm_freerg_list = &rg_elmt;
+  mm->mmap->vm_freerg_list = rg_elmt;
 
   return 0;
 }
@@ -181,7 +181,7 @@ int __free(struct pcb_t *caller, int vmaid, int rgid)
   caller->mm->symrgtbl[rgid].rg_end = -1;
 
   /*enlist the obsoleted memory region */
-  enlist_vm_freerg_list(caller->mm, *rgnode);
+  enlist_vm_freerg_list(caller->mm, rgnode);
 
   printf ("Free region = %d, pid = %d.\n", rgid, caller->pid);
 
@@ -387,10 +387,11 @@ int __read(struct pcb_t *caller, int vmaid, int rgid, int offset, BYTE *data)
 
   struct vm_area_struct *cur_vma = get_vma_by_num(caller->mm, vmaid);
 
-  if (currg == NULL || cur_vma == NULL) /* Invalid memory identify */
+  if (currg == NULL) /* Invalid memory identify */
   {
     printf ("Error in: mm-vm.c/ __read() :");
-    printf (" region %d hoặc virtual memory area %d không tồn tại.\n", rgid, vmaid);
+    printf (" region %d không tồn tại.\n", rgid, vmaid);
+    return -1;
   }
 
   if (currg->rg_start + offset < currg->rg_start || currg->rg_start + offset > currg->rg_end)
@@ -414,6 +415,10 @@ int pgread(
 {
   BYTE data;
   int val = __read(proc, 0, source, offset, &data);
+  if(val != 0) {
+    printf("Error in: mm-vm.c/ pgread().\n");
+    return -1;
+  }
 
   destination = (uint32_t)data;
 #ifdef IODUMP
@@ -441,10 +446,11 @@ int __write(struct pcb_t *caller, int vmaid, int rgid, int offset, BYTE value)
 
   struct vm_area_struct *cur_vma = get_vma_by_num(caller->mm, vmaid);
 
-  if (currg == NULL || cur_vma == NULL) /* Invalid memory identify */
+  if (currg == NULL) /* Invalid memory identify */
   {
     printf ("Error in: mm-vm.c/ __read() :");
-    printf (" region %d hoặc virtual memory area %d không tồn tại.\n", rgid, vmaid);
+    printf (" region %d không tồn tại.\n", rgid, vmaid);
+    return -1;
   }
 
   if (currg->rg_start + offset < currg->rg_start || currg->rg_start + offset > currg->rg_end)
@@ -480,6 +486,7 @@ int pgwrite(
   int res = __write(proc, 0, destination, offset, data);
   if(res != 0) {
     printf("Error in: mm-vm.c/ pgwrite().\n");
+    return -1;
   }
 //sau khi write
 #ifdef IODUMP
@@ -672,11 +679,11 @@ int get_free_vmrg_area(struct pcb_t *caller, int vmaid, int size, struct vm_rg_s
   int count = 0;
   while (rgit != NULL)
   {
-    printf("count: %d\n", count);
-    printf("rgit => rg_start: %lu, rg_end: %lu.\n", rgit->rg_start, rgit->rg_end);
+    //printf("count: %d\n", count);
+    //printf("rgit => rg_start: %lu, rg_end: %lu.\n", rgit->rg_start, rgit->rg_end);
     if (rgit->rg_start + size <= rgit->rg_end)
     { /* Current region has enough space */
-      printf("Checked line 677\n");
+      //printf("Checked line 677\n");
       newrg->rg_start = rgit->rg_start;
       newrg->rg_end = rgit->rg_start + size;
 
@@ -709,13 +716,13 @@ int get_free_vmrg_area(struct pcb_t *caller, int vmaid, int size, struct vm_rg_s
     }
     else
     { 
-      printf("Checked line 710\n");
+      //printf("Checked line 710\n");
 
-      if(rgit == NULL) printf("Check before\n");
+      //if(rgit == NULL) printf("Check before\n");
       rgit = rgit->rg_next; // Traverse next rg
-      if(rgit == NULL) printf("Check after\n");
+      //if(rgit == NULL) printf("Check after\n");
     }
-    printf("Checked line 718\n");
+    //printf("Checked line 718\n");
     count++;
 
   }

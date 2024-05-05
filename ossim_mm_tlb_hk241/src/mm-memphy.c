@@ -174,31 +174,51 @@ int MEMPHY_dump(struct memphy_struct * mp)
      */
     //chỉ in used_fp_list 
     //vì nội dung của mp->storage có thể quá dài và hoặc rỗng
-    printf("print corresponding MEMPHY device's used_fp_list: ");
-    if (mp == NULL) {
-      printf("NULL device\n");
-      return -1;
-    }
-    //pthread_mutex_lock(&memphy_lock);
-    struct framephy_struct * fp = mp->used_fp_list;
-    if (fp == NULL) {
-      printf("No frame has been used\n");
-     // pthread_mutex_unlock(&memphy_lock);
-      return 0;
-    }
-    printf("\n");
-    while (fp != NULL) {
-      printf("frame fpn: %d\n", fp->fpn);
-      int phyaddr = (fp->fpn << PAGING_ADDR_FPN_LOBIT);
-      for (int off = 0; off < PAGING_PAGESZ; off++) {
-         if (mp->storage[phyaddr + off] != 0)
-            printf("Off: 0x%x, data: 0x%02x\n", off, mp->storage[phyaddr + off]);
-      }
-      printf("All offset weren't listed here are all: 0x00\n");
-      fp = fp->fp_next;
-    }
-   // pthread_mutex_unlock(&memphy_lock);
+   //  printf("print corresponding MEMPHY device's used_fp_list: ");
+   //  if (mp == NULL) {
+   //    printf("NULL device\n");
+   //    return -1;
+   //  }
+   //  //pthread_mutex_lock(&memphy_lock);
+   //  struct framephy_struct * fp = mp->used_fp_list;
+   //  if (fp == NULL) {
+   //    printf("No frame has been used\n");
+   //   // pthread_mutex_unlock(&memphy_lock);
+   //    return 0;
+   //  }
+   //  printf("\n");
+   //  while (fp != NULL) {
+   //    printf("frame fpn: %d\n", fp->fpn);
+   //    int phyaddr = (fp->fpn << PAGING_ADDR_FPN_LOBIT);
+   //    for (int off = 0; off < PAGING_PAGESZ; off++) {
+   //       if (mp->storage[phyaddr + off] != 0)
+   //          printf("Off: 0x%x, data: 0x%02x\n", off, mp->storage[phyaddr + off]);
+   //    }
+   //    printf("All offset weren't listed here are all: 0x00\n");
+   //    fp = fp->fp_next;
+   //  }
+   // // pthread_mutex_unlock(&memphy_lock);
     
+   //  return 0;
+
+   flockfile (stdout); // To avoid the dump messages
+                        // interleaved by external messages
+    printf ("=== Physical Memory Dump ===\n");
+    printf ("%7s  %10s:%7s\n", "fpn", "phyaddr", "value");
+    for (int phyaddr = 0; phyaddr < mp->maxsz; phyaddr++)
+        {
+            // int fpn = -1;
+            // Map fpn from phyaddr
+            // from mm-vm.c: int phyaddr = (fpn << PAGING_ADDR_FPN_LOBIT) +
+            // off;
+            int fpn = phyaddr >> PAGING_ADDR_FPN_LOBIT;
+
+            if (mp->storage[phyaddr] != '\0') // if that position is clean
+                printf ("%7d  %010d:%7d\n", fpn, phyaddr,
+                        mp->storage[phyaddr]);
+        }
+    printf ("============================\n");
+    funlockfile (stdout); // Follows the above flockfile()
     return 0;
 }
 

@@ -31,7 +31,7 @@
 //  *  @value: obtained value
 //  */
 
-// int tlb_cache_read(struct memphy_struct * mp, int pid, int pgnum, BYTE *value)
+// int tlb_cache_read(struct memphy_struct * mp, int pid, int pgnum, int* value)
 // {
 //    /* TODO: the identify info is mapped to 
 //     *      cache line by employing:
@@ -42,10 +42,21 @@
 
 //     int addr = pgnum * PAGE_SIZE; // Tính địa chỉ bắt đầu của trang
 
-//     // Đọc giá trị từ bộ nhớ vật lý
+//     // Kiểm tra xem trang đã được cache chưa
+//     if (mp->tlb_cache_pid == pid && mp->tlb_cache_pgnum == pgnum) {
+//         value = &mp->tlb_cache_value; // Trả về giá trị từ TLB cache
+//         return 0; // Đọc thành công từ TLB cache
+//     }
+
+//     // Nếu trang chưa được cache, đọc từ bộ nhớ vật lý
 //     TLBMEMPHY_read(mp, addr, value);
 
-//     return 0;
+//     // Cập nhật TLB cache
+//     mp->tlb_cache_pid = pid;
+//     mp->tlb_cache_pgnum = pgnum;
+//     mp->tlb_cache_value = *value;
+
+//     return 0; // Đọc thành công từ bộ nhớ vật lý
 // }
 
 // /*
@@ -55,13 +66,13 @@
 //  *  @pgnum: page number
 //  *  @value: obtained value
 //  */
-// int tlb_cache_write(struct memphy_struct *mp, int pid, int pgnum, BYTE value)
+// int tlb_cache_write(struct memphy_struct *mp, int pid, int pgnum, int value)
 // {
 //    /* TODO: the identify info is mapped to 
 //     *      cache line by employing:
 //     *      direct mapped, associated mapping etc.
 //     */
-//     if (mp == NULL || pgnum < 0 || pgnum >= mp->maxsz)
+//      if (mp == NULL || pgnum < 0 || pgnum >= mp->maxsz)
 //         return -1; // Tham số không hợp lệ hoặc mp không tồn tại
 
 //     int addr = pgnum * PAGE_SIZE; // Tính địa chỉ bắt đầu của trang
@@ -69,7 +80,12 @@
 //     // Ghi giá trị vào bộ nhớ vật lý
 //     TLBMEMPHY_write(mp, addr, value);
 
-//     return 0;
+//     // Cập nhật TLB cache
+//     mp->tlb_cache_pid = pid;
+//     mp->tlb_cache_pgnum = pgnum;
+//     mp->tlb_cache_value = value;
+
+//     return 0; // Ghi thành công vào bộ nhớ vật lý
 // }
 
 // /*
@@ -78,7 +94,7 @@
 //  *  @addr: address
 //  *  @value: obtained value
 //  */
-// int TLBMEMPHY_read(struct memphy_struct * mp, int addr, BYTE *value)
+// int TLBMEMPHY_read(struct memphy_struct * mp, int addr, int *value)
 // {
 //    if (mp == NULL)
 //      return -1;
@@ -96,7 +112,7 @@
 //  *  @addr: address
 //  *  @data: written data
 //  */
-// int TLBMEMPHY_write(struct memphy_struct * mp, int addr, BYTE data)
+// int TLBMEMPHY_write(struct memphy_struct * mp, int addr, int data)
 // {
 //    if (mp == NULL)
 //      return -1;
@@ -115,17 +131,20 @@
 
 // int TLBMEMPHY_dump(struct memphy_struct * mp)
 // {
-//    if (mp == NULL) {
-//        printf("Error: Invalid memory physical structure\n");
-//        return -1;
-//    }
+//    /*TODO dump memphy contnt mp->storage 
+//     *     for tracing the memory content
+//     */
+//     if (mp == NULL) {
+//         printf("Error: Invalid memory physical structure\n");
+//         return -1;
+//     }
 
-//    printf("Memory physical content:\n");
-//    for (int i = 0; i < mp->maxsz; i++) {
-//        printf("%d: %d\n", i, mp->storage[i]);
-//    }
+//     printf("memory physical content:\n");
+//     for (int i = 0; i < mp->maxsz; i++) {
+//         printf("%d: %d\n", i, mp->storage[i]);
+//     }
 
-//    return 0;
+//     return 0;
 // }
 
 
@@ -143,9 +162,6 @@
 // }
 
 // //#endif
-
-
-
 
 /*
  * Copyright (C) 2024 pdnguyen of the HCMC University of Technology
