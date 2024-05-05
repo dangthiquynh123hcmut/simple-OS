@@ -69,6 +69,7 @@
 
 //SETVAL(*pte, swptyp, PAGING_PTE_SWPTYP_MASK, PAGING_PTE_SWPTYP_LOBIT);
 #define SETVAL(v,value,mask,offst) (v=(v&~mask)|((value<<offst)&mask))
+ 
 #define GETVAL(v,mask,offst) ((v&mask)>>offst)
 
 /* Other masks */

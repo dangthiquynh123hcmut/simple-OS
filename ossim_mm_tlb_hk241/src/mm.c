@@ -74,6 +74,7 @@ int pte_set_fpn(uint32_t *pte, int fpn)
 
   return 0;
 }
+ 
 
 
 /* 
@@ -95,26 +96,38 @@ int vmap_page_range(struct pcb_t *caller, // process call
 
   fpit = frames;
 
+  for (pgit; pgit < pgnum; pgit++) // Try to get [pgnum] frames for all pgn
+  {
+    int fpn;
+    if (pg_getpage (caller->mm, pgn+pgit, &fpn, caller) != 0) 
+    {
+      printf ("Error in: mm.c/ vmap_page_range() :");
+      printf (" pg_getpage() không thành công.\n");
+      return -1;
+    }
+  }
+
   /* TODO map range of frame to address space 
    *      [addr to addr + pgnum*PAGING_PAGESZ
    *      in page table caller->mm->pgd[]
    */
-  for(pgit; pgit < pgnum; pgit++) {  
-    pte_set_fpn(&caller->mm->pgd[pgn + pgit], frames->fpn); //truyền tham chiếu
-    if(frames->fp_next != NULL) frames = frames->fp_next;
-    else break;
-    /* Tracking for later page replacement activities (if needed)
-    * Enqueue new usage page */
-    enlist_pgn_node(&caller->mm->fifo_pgn, pgn+pgit); 
-    //enlist_pgn_node: đưa từng page vào, pgn+pgit là index của page trong page table
-  }
-  ret_rg->rg_end = addr + pgnum*PAGING_PAGESZ;
+  // for(pgit; pgit < pgnum; pgit++) {  
+  //   pte_set_fpn(&caller->mm->pgd[pgn + pgit], frames->fpn); //truyền tham chiếu
+  //   if(frames->fp_next != NULL) frames = frames->fp_next;
+  //   else break;
+  //   /* Tracking for later page replacement activities (if needed)
+  //   * Enqueue new usage page */
+  //   enlist_pgn_node(&caller->mm->fifo_pgn, pgn+pgit); 
+  //   //enlist_pgn_node: đưa từng page vào, pgn+pgit là index của page trong page table
+  // }
+  // ret_rg->rg_end = addr + pgnum*PAGING_PAGESZ;
 
-  //pthread_mutex_lock(&phy_lock);
-    //frames là tail, fpit là head
-  frames->fp_next = caller->mram->used_fp_list;
-  caller->mram->used_fp_list = fpit;
-  //pthread_mutex_unlock(&phy_lock);
+  // //pthread_mutex_lock(&phy_lock);
+  //   //frames là tail, fpit là head
+  // frames->fp_next = caller->mram->used_fp_list;
+  // caller->mram->used_fp_list = fpit;
+  // //pthread_mutex_unlock(&phy_lock);
+
 
   return 0;
 }
@@ -156,6 +169,7 @@ int alloc_pages_range(struct pcb_t *caller, int req_pgnum, struct framephy_struc
     }
    } else {  // ERROR CODE of obtaining somes but not enough frames
     if(pgit == 0) return -3000; //Out of memory
+    req_pgnum = req_pgnum - pgit;
     return -1;
    } 
  }
@@ -186,7 +200,8 @@ int vm_map_ram(struct pcb_t *caller, int astart, int aend, int mapstart, int inc
    *in endless procedure of swap-off to get frame and we have not provide 
    *duplicate control mechanism, keep it simple
    */
-  ret_alloc = alloc_pages_range(caller, incpgnum, &frm_lst);
+  //ret_alloc = alloc_pages_range(caller, incpgnum, &frm_lst);
+  ret_alloc = 0;
 
   if (ret_alloc < 0 && ret_alloc != -3000)
     return -1;
@@ -254,6 +269,15 @@ int init_mm(struct mm_struct *mm, struct pcb_t *caller)
   vma->vm_mm = mm; /*point back to vma owner */
 
   mm->mmap = vma;
+
+  // Initialize the symbol region tables
+  // Avoid garbage values
+  for (int i = 0; i < PAGING_MAX_SYMTBL_SZ; ++i)
+  {
+    mm->symrgtbl[i].rg_start = -1;
+    mm->symrgtbl[i].rg_end = -1;
+    mm->symrgtbl[i].rg_next = NULL;
+  }
 
   return 0;
 }

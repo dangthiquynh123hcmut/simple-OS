@@ -56,9 +56,11 @@ int run(struct pcb_t * proc) {
 	int stat = 1;
 	switch (ins.opcode) {
 	case CALC:
+		printf("                                                Type of instruction: CALC\n");
 		stat = calc(proc);
 		break;
 	case ALLOC:
+		printf("                                                Type of instruction: ALLOC\n");
 #ifdef CPU_TLB 
 		stat = tlballoc(proc, ins.arg_0, ins.arg_1);
 #elif defined(MM_PAGING)
@@ -68,6 +70,7 @@ int run(struct pcb_t * proc) {
 #endif
 		break;
 	case FREE:
+		printf("                                                Type of instruction: FREE\n");
 #ifdef CPU_TLB
 		stat = tlbfree_data(proc, ins.arg_0);
 #elif defined(MM_PAGING)
@@ -77,6 +80,7 @@ int run(struct pcb_t * proc) {
 #endif
 		break;
 	case READ:
+		printf("                                                Type of instruction: READ\n");
 #ifdef CPU_TLB
 		stat = tlbread(proc, ins.arg_0, ins.arg_1, ins.arg_2);
 #elif defined(MM_PAGING)
@@ -86,6 +90,7 @@ int run(struct pcb_t * proc) {
 #endif
 		break;
 	case WRITE:
+		printf("                                                Type of instruction: WRITE\n");
 #ifdef CPU_TLB
 		stat = tlbwrite(proc, ins.arg_0, ins.arg_1, ins.arg_2);
 #elif defined(MM_PAGING)

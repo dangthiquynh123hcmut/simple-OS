@@ -64,7 +64,7 @@ struct vm_area_struct *get_vma_by_num(struct mm_struct *mm, int vmaid)
  */
 struct vm_rg_struct *get_symrg_byid(struct mm_struct *mm, int rgid)
 {
-  if (rgid < 0 || rgid > PAGING_MAX_SYMTBL_SZ)
+  if (rgid < 0 || rgid > PAGING_MAX_SYMTBL_SZ || mm->symrgtbl[rgid].rg_start == mm->symrgtbl[rgid].rg_end)
     return NULL;
 
   return &mm->symrgtbl[rgid];
@@ -82,30 +82,45 @@ int __alloc(struct pcb_t *caller, int vmaid, int rgid, int size, int *alloc_addr
 {
   /*Allocate at the toproof */
   struct vm_rg_struct rgnode;
+  //printf("Checked here\n");
   if (get_free_vmrg_area(caller, vmaid, size, &rgnode) == 0)
-  {
+  { 
+    //printf("Checked here\n");
     caller->mm->symrgtbl[rgid].rg_start = rgnode.rg_start;
     caller->mm->symrgtbl[rgid].rg_end = rgnode.rg_end;
 
     *alloc_addr = rgnode.rg_start;
 
+    printf("Case 1: ");
+    printf ("Alloc region = %d, size = %d, pid = %d\n", rgid, size, caller->pid);
     return 0;
   }
+  //printf("Checked here\n");
 
   /* TODO get_free_vmrg_area FAILED handle the region management (Fig.6)*/
-  struct vm_area_struct *areaTemp = get_vma_by_num(caller->mm, vmaid);
-  if (areaTemp->sbrk + size <= areaTemp->vm_end)
+  struct vm_area_struct *cur_vma = get_vma_by_num(caller->mm, vmaid);
+  if (cur_vma == NULL)
   {
-    caller->mm->symrgtbl[rgid].rg_start = areaTemp->sbrk;
-    caller->mm->symrgtbl[rgid].rg_end = areaTemp->sbrk + size;
-    *alloc_addr = areaTemp->sbrk;
-    areaTemp->sbrk = areaTemp->sbrk + size;
+    printf ("Error in: mm-vm.c/ __alloc() :");
+    printf (" virtual memory area %d không tồn tại.\n", vmaid);
+  }
+  int gap = cur_vma->vm_end - cur_vma->sbrk;
+  printf("Gap: %d\n", gap);
+
+  if (size <= gap)
+  {
+    caller->mm->symrgtbl[rgid].rg_start = cur_vma->sbrk;
+    caller->mm->symrgtbl[rgid].rg_end = cur_vma->sbrk + size;
+    *alloc_addr = cur_vma->sbrk;
+    cur_vma->sbrk = cur_vma->sbrk + size;
+
+    printf("Case 2: ");
+    printf ("Alloc region = %d, size = %d, pid = %d\n", rgid, size, caller->pid);
     return 0;
   }
 
   /*Attempt to increate limit to get space */
-  struct vm_area_struct *cur_vma = get_vma_by_num(caller->mm, vmaid);
-  int inc_sz = PAGING_PAGE_ALIGNSZ(size - (areaTemp->vm_end - areaTemp->sbrk));
+  int inc_sz = PAGING_PAGE_ALIGNSZ(size - gap);
   // int inc_limit_ret
   int old_sbrk;
 
@@ -114,7 +129,12 @@ int __alloc(struct pcb_t *caller, int vmaid, int rgid, int size, int *alloc_addr
   /* TODO INCREASE THE LIMIT
    * inc_vma_limit(caller, vmaid, inc_sz)
    */
-  inc_vma_limit(caller, vmaid, inc_sz);
+  if (inc_vma_limit (caller, vmaid, inc_sz) != 0)
+  {
+    printf ("Error in: mm-vm.c/ __alloc() :");
+    printf (" inc_vma_limit() không thể tăng giới hạn.\n");
+    return -1;
+  }
 
   /*Successful increase limit */
   caller->mm->symrgtbl[rgid].rg_start = old_sbrk;
@@ -124,6 +144,8 @@ int __alloc(struct pcb_t *caller, int vmaid, int rgid, int size, int *alloc_addr
 
   cur_vma->sbrk = old_sbrk + size;
 
+  printf("Case 3: ");
+  printf ("Alloc region = %d, size = %d, pid = %d\n", rgid, size, caller->pid);
   return 0;
 }
 
@@ -142,16 +164,26 @@ int __free(struct pcb_t *caller, int vmaid, int rgid)
     return -1;
 
   /* TODO: Manage the collect freed region to freerg_list */
-  struct vm_rg_struct *rgnode = malloc(sizeof(struct vm_rg_struct));
   struct vm_rg_struct *temp = get_symrg_byid(caller->mm, rgid);
+  if (temp == NULL) /* Invalid memory identify */
+  {
+    printf ("Error in: mm-vm.c/ __free() :");
+    //printf ("Region %d hoặc virtual memory area %d không tồn tại.\n", rgid, vmaid);
+    printf (" region %d không tồn tại.\n", rgid);
+    return -1;
+  }
+
+  struct vm_rg_struct *rgnode = malloc(sizeof(struct vm_rg_struct));
   rgnode->rg_start = temp->rg_start;
   rgnode->rg_end = temp->rg_end;
 
-  temp->rg_start = -1;
-  temp->rg_end = -1;
+  caller->mm->symrgtbl[rgid].rg_start = -1;
+  caller->mm->symrgtbl[rgid].rg_end = -1;
 
   /*enlist the obsoleted memory region */
   enlist_vm_freerg_list(caller->mm, *rgnode);
+
+  printf ("Free region = %d, pid = %d.\n", rgid, caller->pid);
 
   return 0;
 }
@@ -203,70 +235,72 @@ int pg_getpage(struct mm_struct *mm, int pgn, int *fpn, struct pcb_t *caller)
     if (get_freefp_status != -1)
     {
       pte_set_fpn(&pte, freefpn);
-      printf("Get free frame from RAM succesfully.\n");
+      printf("Lấy free frame physical thành công: freefpn = %d.\n", freefpn);
     }
     else
     {
 
       int vicpgn; 
-      // int vicfpn;
-      // uint32_t vicpte;
-
       /* TODO: Play with your paging theory here */
       /* Find victim page */
       if (find_victim_page(caller->mm, &vicpgn) == -1)
       {
-        printf("Get find victim page failed.\n");
+        printf("Lấy victim page thất bại.\n");
         return -1;
       }
       
-      int temp = mm->pgd[vicpgn];
-      int swpfpn;
+      int temp = mm->pgd[vicpgn]; //32 bit
+      int swpfpn;                
       if (MEMPHY_get_freefp(caller->active_mswp, &swpfpn) == -1)
-            {
-                return -1; // If current mswp full, return error.
-            }
+      {
+        return -1; // If current mswp full, return error.
+      }
       /* Do swap frame from MEMRAM to MEMSWP and vice versa*/
       /* Copy victim frame to swap */
      
+      // temp = mm->pgd[vicpgn] ~ 32 bit => lấy ra bit 0-12 là fpn
+      // swpfpn ~ fpn
       uint32_t sourceRAM = PAGING_FPN(temp);
       __swap_cp_page(caller->mram, sourceRAM, caller->active_mswp, swpfpn);
       /* Copy target frame from swap to mem */
-        int tgtfpn = PAGING_SWP(pte); // the target frame storing our variable
-        int dstfpn_in = PAGING_FPN(temp);
+
+      // pte = mm->pgd[pgn] hiện đang là 25 bit (đang ở swap)
+      int tgtfpn = PAGING_SWP(pte); // the target frame storing our variable
+      int dstfpn_in = PAGING_FPN(temp);
       __swap_cp_page(caller->active_mswp, tgtfpn, caller->mram, dstfpn_in);
 
      /* Update its online status of the target page */
-      pte_set_fpn(&mm->pgd[pgn], sourceRAM); // pgd[pgn] map tới sourceRAM trên RAM
+      pte_set_fpn(&mm->pgd[pgn], sourceRAM); // pgd[pgn] đang là 25 bit (trên SWAP) => set lại thành 32 bit
 
       /* Update page table */
-       int phyaddr_swp = (swpfpn << PAGING_ADDR_FPN_LOBIT);
-      pte_set_swap(&mm->pgd[vicpgn], 0, phyaddr_swp); // giờ pgd[vicpgn] sẽ map tới SWAP
+      int phyaddr_swp = (swpfpn << PAGING_ADDR_FPN_LOBIT);  // dịch trái để lấy offset
+      int swptyp = 0; // In this assignment, we assume swptyp = 0
+      int swpoff = phyaddr_swp; // SWP OFFSET, where the frame actually is on MSWP
+      pte_set_swap(&mm->pgd[vicpgn], swptyp, swpoff); // set pgd[vicpgn] thành 25 bit (đã chuyển ra SWAP)
 
-       SETBIT(pte,                      // Make pte "present"
-                   PAGING_PTE_PRESENT_MASK); // Duplicate with
+      // chỉnh bit 31 của pte thành present
+      SETBIT(pte, PAGING_PTE_PRESENT_MASK);  // Make pte "present"
+                                             // Duplicate with
                                              // pte_set_fpn's macro.
                                              // However, this macro is
                                              // still put here to
                                              // clarify the flow of
                                              // pg_getpage algorithm.
-            CLRBIT(
-                temp,
-                PAGING_PTE_PRESENT_MASK); // Make vicpte "unpresent"
+      // chỉnh bit 31 của temp thành unpresent
+      CLRBIT(temp, PAGING_PTE_PRESENT_MASK); // Make vicpte "unpresent"
                                           // Note that this CLRBIT must
-           
-             mm->pgd[vicpgn] = temp; // Update page table
-            mm->pgd[pgn] = pte;       // Update page table
+                                          
+      mm->pgd[pgn] = pte;     // Update page table
+      mm->pgd[vicpgn] = temp; // Update page table
 
-            printf("Swapped sucessfully, frame %d updated.\n",
-                   dstfpn_in);                               // come AFTER pte_set_swap()
+      printf("Swapped sucessfully, frame %d updated.\n", dstfpn_in); // come AFTER pte_set_swap()
      
     }
   }
 #ifdef CPU_TLB
   /* Update its online status of TLB (if needed) */
 #endif
-
+  // add head => first (page đến sớm nhất) sẽ ở tail
   enlist_pgn_node(&caller->mm->fifo_pgn, pgn);
 
 
@@ -289,11 +323,20 @@ int pg_getval(struct mm_struct *mm, int addr, BYTE *data, struct pcb_t *caller)
 
   /* Get the page to MEMRAM, swap from MEMSWAP if needed */
   if (pg_getpage(mm, pgn, &fpn, caller) != 0)
+  {
+    printf ("Error in: mm-vm.c/ pg_getval() :");
+    printf (" pg_getpage() is not sucessful.\n");
     return -1; /* invalid page access */
+  }
 
   int phyaddr = (fpn << PAGING_ADDR_FPN_LOBIT) + off;
 
-  MEMPHY_read(caller->mram, phyaddr, data);
+  if (MEMPHY_write (caller->mram, phyaddr, data) != 0)
+  {
+    printf ("Error in: mm-vm.c / pg_getval() :");
+    printf (" MEMPHY_write() is not sucessful.\n");
+    return -1;
+  }
 
   return 0;
 }
@@ -311,12 +354,21 @@ int pg_setval(struct mm_struct *mm, int addr, BYTE value, struct pcb_t *caller)
   int fpn;
 
   /* Get the page to MEMRAM, swap from MEMSWAP if needed */
-  if (pg_getpage(mm, pgn, &fpn, caller) != 0)
+  if (pg_getpage(mm, pgn, &fpn, caller) != 0) 
+  {
+    printf ("Error in: mm-vm.c/ pg_setval() :");
+    printf (" pg_getpage() is not sucessful.\n");
     return -1; /* invalid page access */
+  }
 
   int phyaddr = (fpn << PAGING_ADDR_FPN_LOBIT) + off;
 
-  MEMPHY_write(caller->mram, phyaddr, value);
+  if (MEMPHY_write (caller->mram, phyaddr, value) != 0)
+  {
+    printf ("Error in: mm-vm.c / pg_setval() :");
+    printf (" MEMPHY_write() is not sucessful.\n");
+    return -1;
+  }
 
   return 0;
 }
@@ -336,7 +388,17 @@ int __read(struct pcb_t *caller, int vmaid, int rgid, int offset, BYTE *data)
   struct vm_area_struct *cur_vma = get_vma_by_num(caller->mm, vmaid);
 
   if (currg == NULL || cur_vma == NULL) /* Invalid memory identify */
+  {
+    printf ("Error in: mm-vm.c/ __read() :");
+    printf (" region %d hoặc virtual memory area %d không tồn tại.\n", rgid, vmaid);
+  }
+
+  if (currg->rg_start + offset < currg->rg_start || currg->rg_start + offset > currg->rg_end)
+  {
+    printf ("Error in: mm-vm.c/ __read() :");
+    printf (" truy cập out-of-range region.\n");
     return -1;
+  }
 
   pg_getval(caller->mm, currg->rg_start + offset, data, caller);
 
@@ -355,7 +417,7 @@ int pgread(
 
   destination = (uint32_t)data;
 #ifdef IODUMP
-  printf("read region=%d offset=%d value=%d\n", source, offset, data);
+  printf("read region = %d offset = %d value = %d\n", source, offset, data);
 #ifdef PAGETBL_DUMP
   print_pgtbl(proc, 0, -1); // print max TBL
 #endif
@@ -380,7 +442,17 @@ int __write(struct pcb_t *caller, int vmaid, int rgid, int offset, BYTE value)
   struct vm_area_struct *cur_vma = get_vma_by_num(caller->mm, vmaid);
 
   if (currg == NULL || cur_vma == NULL) /* Invalid memory identify */
+  {
+    printf ("Error in: mm-vm.c/ __read() :");
+    printf (" region %d hoặc virtual memory area %d không tồn tại.\n", rgid, vmaid);
+  }
+
+  if (currg->rg_start + offset < currg->rg_start || currg->rg_start + offset > currg->rg_end)
+  {
+    printf ("Error in: mm-vm.c/ __write() :");
+    printf (" truy cập out-of-range region.\n");
     return -1;
+  }
 
   pg_setval(caller->mm, currg->rg_start + offset, value, caller);
 
@@ -394,15 +466,32 @@ int pgwrite(
     uint32_t destination, // Index of destination register
     uint32_t offset)
 {
+//trước khi write
 #ifdef IODUMP
-  printf("write region=%d offset=%d value=%d\n", destination, offset, data);
+  printf("write region = %d offset = %d value = %d\n", destination, offset, data);
+  printf("Trước khi write:\n");
 #ifdef PAGETBL_DUMP
   print_pgtbl(proc, 0, -1); // print max TBL
 #endif
   MEMPHY_dump(proc->mram);
 #endif
+///
 
-  return __write(proc, 0, destination, offset, data);
+  int res = __write(proc, 0, destination, offset, data);
+  if(res != 0) {
+    printf("Error in: mm-vm.c/ pgwrite().\n");
+  }
+//sau khi write
+#ifdef IODUMP
+  printf("Sau khi write:\n");
+#ifdef PAGETBL_DUMP
+  print_pgtbl(proc, 0, -1); // print max TBL
+#endif
+  MEMPHY_dump(proc->mram);
+#endif
+///
+
+  return res;
 }
 
 /*free_pcb_memphy - collect all memphy of pcb
@@ -466,17 +555,18 @@ struct vm_rg_struct *get_vm_area_node_at_brk(struct pcb_t *caller, int vmaid, in
 // lỡ vmastart và vmaend nó trùng qua
 int validate_overlap_vm_area(struct pcb_t *caller, int vmaid, int vmastart, int vmaend)
 {
-  struct vm_area_struct *vma = caller->mm->mmap;
-
-  /* TODO validate the planned memory area is not overlapped */
-  while (vma)
-  {
-    // thực ra chỉ cần check vmaend
-    if ((vmastart >= vma->vm_start && vmastart <= vma->vm_end) || (vmaend >= vma->vm_start && vmaend <= vma->vm_end))
-      return -1;
-    vma = vma->vm_next;
-  }
   return 0;
+  // struct vm_area_struct *vma = caller->mm->mmap;
+
+  // /* TODO validate the planned memory area is not overlapped */
+  // while (vma)
+  // {
+  //   // thực ra chỉ cần check vmaend
+  //   if ((vmastart >= vma->vm_start && vmastart <= vma->vm_end) || (vmaend >= vma->vm_start && vmaend <= vma->vm_end))
+  //     return -1;
+  //   vma = vma->vm_next;
+  // }
+  // return 0;
 }
 
 /*inc_vma_limit - increase vm area limits to reserve space for new variable
@@ -497,16 +587,21 @@ int inc_vma_limit(struct pcb_t *caller, int vmaid, int inc_sz)
   int old_end = cur_vma->vm_end;
 
   /*Validate overlap of obtained region */
-  if (validate_overlap_vm_area(caller, vmaid, area->rg_start, area->rg_end) < 0)
+  if (validate_overlap_vm_area(caller, vmaid, area->rg_start, area->rg_end) < 0) {
+    printf("Error in: mm-vm.c/ inc_vma_limit(): overlap and failed allocation.\n");
     return -1; /*Overlap and failed allocation */
+  }
+    
 
   /* The obtained vm area (only)
    * now will be alloc real ram region */
   cur_vma->vm_end += inc_sz; // thêm vào bắt đầu từ break + size, tăng limit lại tăng từ end => khoảng cách giữa end và break vẫn như cũ
   // int vm_map_ram(struct pcb_t *caller, int astart, int aend, int mapstart, int incpgnum, struct vm_rg_struct *ret_rg)
-  if (vm_map_ram(caller, area->rg_start, area->rg_end,
-                 old_end, incnumpage, newrg) < 0)
+  if (vm_map_ram(caller, area->rg_start, area->rg_end, old_end, incnumpage, newrg) < 0) {
+    printf ("Error in: mm-vm.c/ inc_vma_limit() :");
+    printf(" vm_map_ram() không thành công.\n");
     return -1; /* Map the memory to MEMRAM */
+  }
   free(newrg); // cần không?
   return 0;
 }
@@ -557,19 +652,31 @@ int get_free_vmrg_area(struct pcb_t *caller, int vmaid, int size, struct vm_rg_s
 {
   struct vm_area_struct *cur_vma = get_vma_by_num(caller->mm, vmaid);
 
+  if (cur_vma == NULL) /* Invalid memory identify */
+  {
+    printf ("Error in: mm-vm.c/ get_free_vmrg_area() :");
+    printf (" virtual memory area %d không tồn tại.\n", vmaid);
+    return -1;
+  }
+
   struct vm_rg_struct *rgit = cur_vma->vm_freerg_list;
 
   if (rgit == NULL)
-    return -1;
+        return -1;
 
   /* Probe unintialized newrg */
   newrg->rg_start = newrg->rg_end = -1;
 
   /* Traverse on list of free vm region to find a fit space */
+  // printf("Checked line 664\n");
+  int count = 0;
   while (rgit != NULL)
   {
+    printf("count: %d\n", count);
+    printf("rgit => rg_start: %lu, rg_end: %lu.\n", rgit->rg_start, rgit->rg_end);
     if (rgit->rg_start + size <= rgit->rg_end)
     { /* Current region has enough space */
+      printf("Checked line 677\n");
       newrg->rg_start = rgit->rg_start;
       newrg->rg_end = rgit->rg_start + size;
 
@@ -601,11 +708,18 @@ int get_free_vmrg_area(struct pcb_t *caller, int vmaid, int size, struct vm_rg_s
       }
     }
     else
-    {
-      rgit = rgit->rg_next; // Traverse next rg
-    }
-  }
+    { 
+      printf("Checked line 710\n");
 
+      if(rgit == NULL) printf("Check before\n");
+      rgit = rgit->rg_next; // Traverse next rg
+      if(rgit == NULL) printf("Check after\n");
+    }
+    printf("Checked line 718\n");
+    count++;
+
+  }
+  //printf("Checked line 704\n");
   if (newrg->rg_start == -1) // new region not found
     return -1;
 
