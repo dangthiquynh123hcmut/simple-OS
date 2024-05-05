@@ -106,10 +106,9 @@ int run(struct pcb_t * proc) {
 	if (stat == -1) // Handle instruction fault.
                     // If an instruction does not execute
                     // as expected, the program aborts
-
     {
     	printf("\n\n");
-        printf ("ABORT: in cpu.c, run(). Instruction did not execute as expected.\n");
+        printf ("STOP: in cpu.c/ run(): Có lỗi xảy ra.\n");
         exit(0);
     }
 
