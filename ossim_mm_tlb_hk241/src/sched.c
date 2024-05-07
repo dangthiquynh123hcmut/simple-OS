@@ -80,6 +80,11 @@ struct pcb_t * get_mlq_proc(void) {
                     if (priority_queue->slots == designated_slots)
                         {
                             count++;
+			    if(count==MAX_PRIO){
+                                
+                            	count = 0;
+                    		reset_slots ();
+                            }
                             continue;
                         }
                     else
