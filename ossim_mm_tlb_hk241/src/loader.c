@@ -84,6 +84,7 @@ struct pcb_t * load(const char * path) {
 			exit(1);
 		}
 	}
+
 	return proc;
 }
 

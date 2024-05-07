@@ -68,9 +68,17 @@ struct framephy_struct {
    struct mm_struct* owner;
 };
 
+// tất cả process sử dụng chung 1 TLB nên mỗi entry cần có pid để biết page và frame này đang thuộc process nào
+// valid = 0: miss
+struct tlbEntry {
+   int pid;
+   int valid;
+};
+
 struct memphy_struct {
    /* Basic field of data and size */
-   BYTE *storage;
+   struct tlbEntry* help;
+   BYTE *storage; // lưu fpn
    int maxsz;
    
    /* Sequential device fields */ 

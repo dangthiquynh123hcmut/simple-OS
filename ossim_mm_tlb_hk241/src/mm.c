@@ -88,23 +88,22 @@ int vmap_page_range(struct pcb_t *caller, // process call
 {                                         // no guarantee all given pages are mapped
   //uint32_t * pte = malloc(sizeof(uint32_t));
   struct framephy_struct *fpit = malloc(sizeof(struct framephy_struct));
-  //int  fpn;
-  int pgit = 0;
-  int pgn = PAGING_PGN(addr);
 
   ret_rg->rg_end = ret_rg->rg_start = addr; // at least the very first space is usable
 
   fpit = frames;
 
-  for (pgit; pgit < pgnum; pgit++) // Try to get [pgnum] frames for all pgn
+  int fpn;
+  for (int pgit = 0; pgit < pgnum; pgit++) // Try to get [pgnum] frames for all pgn
   {
-    int fpn;
-    if (pg_getpage (caller->mm, pgn+pgit, &fpn, caller) != 0) 
+    int pgn = PAGING_PGN(addr);
+    if (pg_getpage (caller->mm, pgn, &fpn, caller) != 0) 
     {
       printf ("Error in: mm.c/ vmap_page_range() :");
       printf (" pg_getpage() không thành công.\n");
       return -1;
     }
+    addr += PAGING_PAGESZ;
   }
 
   /* TODO map range of frame to address space 
@@ -135,7 +134,7 @@ int vmap_page_range(struct pcb_t *caller, // process call
 /* 
  * alloc_pages_range - allocate req_pgnum of frame in ram
  * @caller    : caller
- * @req_pgnum : request page num
+ * @req_pgnum : request page num ~ number of request page
  * @frm_lst   : frame list
  */
 

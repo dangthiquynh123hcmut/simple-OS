@@ -93,6 +93,7 @@ int __alloc(struct pcb_t *caller, int vmaid, int rgid, int size, int *alloc_addr
 
     printf("Case 1: ");
     printf ("Alloc region = %d, size = %d, pid = %d\n", rgid, size, caller->pid);
+    printf("Check: region->rg_start = %d, region->rg_end = %d.\n", caller->mm->symrgtbl[rgid].rg_start, caller->mm->symrgtbl[rgid].rg_end);
     return 0;
   }
   //printf("Checked here\n");
@@ -103,6 +104,7 @@ int __alloc(struct pcb_t *caller, int vmaid, int rgid, int size, int *alloc_addr
   {
     printf ("Error in: mm-vm.c/ __alloc() :");
     printf (" virtual memory area %d không tồn tại.\n", vmaid);
+    return -1;
   }
   int gap = cur_vma->vm_end - cur_vma->sbrk;
   printf("Gap: %d\n", gap);
@@ -116,6 +118,7 @@ int __alloc(struct pcb_t *caller, int vmaid, int rgid, int size, int *alloc_addr
 
     printf("Case 2: ");
     printf ("Alloc region = %d, size = %d, pid = %d\n", rgid, size, caller->pid);
+    printf("Check: region->rg_start = %d, region->rg_end = %d.\n", caller->mm->symrgtbl[rgid].rg_start, caller->mm->symrgtbl[rgid].rg_end);
     return 0;
   }
 
@@ -146,6 +149,7 @@ int __alloc(struct pcb_t *caller, int vmaid, int rgid, int size, int *alloc_addr
 
   printf("Case 3: ");
   printf ("Alloc region = %d, size = %d, pid = %d\n", rgid, size, caller->pid);
+  printf("Check: region->rg_start = %d, region->rg_end = %d.\n", caller->mm->symrgtbl[rgid].rg_start, caller->mm->symrgtbl[rgid].rg_end);
   return 0;
 }
 
@@ -219,23 +223,32 @@ int pgfree_data(struct pcb_t *proc, uint32_t reg_index)
  *@caller: caller
  *
  */
+// pgn = PAGING_PGN (addr); // get the page
+// pgn lấy từ 14 bit đầu của address
 int pg_getpage(struct mm_struct *mm, int pgn, int *fpn, struct pcb_t *caller)
 {
   if (pgn < 0 || pgn >= PAGING_MAX_PGN) // check if pgn is invalid
   {
     return -1;
   }
-  uint32_t pte = mm->pgd[pgn];
 
-  if (!PAGING_PAGE_PRESENT(pte))
+  if (!PAGING_PAGE_PRESENT(mm->pgd[pgn]))
   { /* Page is not online, make it actively living */
     int freefpn;
     int get_freefp_status = MEMPHY_get_freefp(caller->mram, &freefpn);
 
     if (get_freefp_status != -1)
     {
-      pte_set_fpn(&pte, freefpn);
-      printf("Lấy free frame physical thành công: freefpn = %d.\n", freefpn);
+      //printf("check pte = %u, pgn = %d\n", pte, pgn);
+      pte_set_fpn(&mm->pgd[pgn], freefpn);
+      //printf("check pte = %u, pgnu = %d\n", pte, pgn);
+
+      printf("Lấy free frame physical thành công: pgnum = %d, freefpn = %d.\n", pgn, freefpn);
+
+      //uint32_t miss_pte = mm->pgd[pgn];
+      //printf("check pte: %u\n", miss_pte);
+      //int fpn = PAGING_FPN(miss_pte);
+      //printf("Get fpn from mm->pgd[pgn]: %d\n", fpn);
     }
     else
     {
@@ -265,7 +278,7 @@ int pg_getpage(struct mm_struct *mm, int pgn, int *fpn, struct pcb_t *caller)
       /* Copy target frame from swap to mem */
 
       // pte = mm->pgd[pgn] hiện đang là 25 bit (đang ở swap)
-      int tgtfpn = PAGING_SWP(pte); // the target frame storing our variable
+      int tgtfpn = PAGING_SWP(mm->pgd[pgn]); // the target frame storing our variable
       int dstfpn_in = PAGING_FPN(temp);
       __swap_cp_page(caller->active_mswp, tgtfpn, caller->mram, dstfpn_in);
 
@@ -279,6 +292,7 @@ int pg_getpage(struct mm_struct *mm, int pgn, int *fpn, struct pcb_t *caller)
       pte_set_swap(&mm->pgd[vicpgn], swptyp, swpoff); // set pgd[vicpgn] thành 25 bit (đã chuyển ra SWAP)
 
       // chỉnh bit 31 của pte thành present
+      uint32_t pte = mm->pgd[pgn];
       SETBIT(pte, PAGING_PTE_PRESENT_MASK);  // Make pte "present"
                                              // Duplicate with
                                              // pte_set_fpn's macro.
@@ -304,7 +318,7 @@ int pg_getpage(struct mm_struct *mm, int pgn, int *fpn, struct pcb_t *caller)
   enlist_pgn_node(&caller->mm->fifo_pgn, pgn);
 
 
-*fpn = PAGING_FPN(pte);
+*fpn = PAGING_FPN(mm->pgd[pgn]);
 
 return 0;
 }

@@ -108,6 +108,7 @@ static void * ld_routine(void * args) {
 	struct memphy_struct* mram = ((struct mmpaging_ld_args *)args)->mram;
 	struct memphy_struct** mswp = ((struct mmpaging_ld_args *)args)->mswp;
 	struct memphy_struct* active_mswp = ((struct mmpaging_ld_args *)args)->active_mswp;
+	struct memphy_struct* tlb = ((struct mmpaging_ld_args *)args)->tlb;
 	struct timer_id_t * timer_id = ((struct mmpaging_ld_args *)args)->timer_id;
 #else
 	struct timer_id_t * timer_id = (struct timer_id_t*)args;
@@ -128,6 +129,8 @@ static void * ld_routine(void * args) {
 		proc->mram = mram;
 		proc->mswp = mswp;
 		proc->active_mswp = active_mswp;
+		proc->tlb = tlb;
+
 #endif
 		printf("\tLoaded a process at %s, PID: %d PRIO: %ld\n",
 			ld_processes.path[i], proc->pid, ld_processes.prio[i]);
@@ -242,6 +245,7 @@ int main(int argc, char * argv[]) {
 	struct memphy_struct tlb;
 
 	init_tlbmemphy(&tlb, tlbsz);
+	// printf("check here\n");
 #endif
 
 #ifdef MM_PAGING
@@ -267,6 +271,9 @@ int main(int argc, char * argv[]) {
 	mm_ld_args->mram = (struct memphy_struct *) &mram;
 	mm_ld_args->mswp = (struct memphy_struct**) &mswp;
 	mm_ld_args->active_mswp = (struct memphy_struct *) &mswp[0];
+
+	mm_ld_args->tlb = (struct memphy_struct *) &tlb;
+
 #endif
 
 #ifdef CPU_TLB
