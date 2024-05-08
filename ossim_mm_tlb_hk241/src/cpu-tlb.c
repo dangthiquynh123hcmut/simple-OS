@@ -48,6 +48,10 @@ int tlballoc(struct pcb_t *proc, uint32_t size, uint32_t reg_index)
 
   /* TODO update TLB CACHED frame num of the new allocated page(s)*/
   /* by using tlb_cache_read()/tlb_cache_write()*/
+  int pgnum = PAGING_PGN(addr);
+  uint32_t pte = proc->mm->pgd[pgnum];
+  int fpn = PAGING_FPN(pte);
+  tlb_cache_write(proc->tlb, proc->pid, pgnum,(BYTE) fpn); 
 
   return val;
 }
@@ -63,6 +67,17 @@ int tlbfree_data(struct pcb_t *proc, uint32_t reg_index)
 
   /* TODO update TLB CACHED frame num of freed page(s)*/
   /* by using tlb_cache_read()/tlb_cache_write()*/
+  int address = proc->mm->symrgtbl[reg_index].rg_start;
+  int pgnum = PAGING_PGN(address);
+
+  for(int i = 0; i<proc->tlb->maxsz; i++) {
+    if( proc->tlb->help[i].valid == 1 && proc->tlb->help[i].pid == proc->pid && proc->tlb->help[i].pgnum == pgnum) {
+      proc->tlb->help[i].valid == 0;
+      return TLBMEMPHY_read(proc->tlb, i, -1);
+    }
+  }
+
+  printf("Error in tlbfree_data(): Không tìm thấy trong TLB.\n");
 
   return 0;
 }
