@@ -85,10 +85,16 @@ int tlbread(struct pcb_t * proc, uint32_t source,
   /* by using tlb_cache_read()/tlb_cache_write()*/
   /* frmnum is return value of tlb_cache_read/write value*/
 
+  if( proc->mm->symrgtbl[source].rg_start == proc->mm->symrgtbl[source].rg_end ) {
+    printf("Error in tlbread(): read vùng chưa khởi tạo!\n");
+    return -1;
+  }
+
   // Lấy ra frame number
-  int address = source + offset;
+  int address = proc->mm->symrgtbl[source].rg_start + offset;
   int pgnum = PAGING_PGN(address);
-  printf("ADDRESS = %d, pgnum = %d\n", address, pgnum);
+  //int index_in_tlb = pgnum % proc->tlb->maxsz;
+  //printf("ADDRESS = %d, pgnum = %d\n", address, pgnum);
 
   tlb_cache_read(proc->tlb, proc->pid, pgnum, &frmnum);
 
@@ -119,12 +125,15 @@ int tlbread(struct pcb_t * proc, uint32_t source,
   else {
     // sử dụng page table
     val = __read(proc, 0, source, offset, &data);
+
+    if( val == -1 ) printf("Error in tlbread(): __read() trong trường hợp MISS thất bại.\n");
+
     destination = (uint32_t) data; 
     // frame fpn vừa được đọc và không có trong TLB nên cần thêm vào 
     uint32_t miss_pte = proc->mm->pgd[pgnum];
     int fpn = PAGING_FPN(miss_pte);
-    
-    tlb_cache_write(proc->tlb, proc->pid, pgnum, (BYTE) fpn); 
+  
+    tlb_cache_write(proc->tlb, proc->pid, pgnum,(BYTE) fpn); 
   }
 
   /* TODO update TLB CACHED with frame num of recent accessing page(s)*/
@@ -136,6 +145,12 @@ int tlbread(struct pcb_t * proc, uint32_t source,
   // Register destionation vừa được sử dụng để ghi kết quả đọc được vào
   // nên cần cập nhật TLB 
   tlb_cache_write(proc->tlb, proc->pid, des_pgnum, (BYTE) des_fpn); 
+
+  printf("Sau khi read:\n");
+#ifdef PAGETBL_DUMP
+  print_pgtbl(proc, 0, -1); //print max TBL
+#endif
+  MEMPHY_dump(proc->mram);
   
   return val;
 }
@@ -155,9 +170,15 @@ int tlbwrite(struct pcb_t * proc, BYTE data,
   /* TODO retrieve TLB CACHED frame num of accessing page(s))*/
   /* by using tlb_cache_read()/tlb_cache_write()
   frmnum is return value of tlb_cache_read/write value*/
-  int address = destination + offset;
+  
+  if( proc->mm->symrgtbl[destination].rg_start == proc->mm->symrgtbl[destination].rg_end ) {
+    printf("Error in tlbwrite(): write vào vùng chưa khởi tạo!\n");
+    return -1;
+  }
+
+  int address = proc->mm->symrgtbl[destination].rg_start + offset;
   int pgnum = PAGING_PGN(address);
-  printf("ADDRESS = %d, pgnum = %d\n", address, pgnum);
+  //printf("ADDRESS = %d, pgnum = %d\n", address, pgnum);
   tlb_cache_read(proc->tlb, proc->pid, pgnum, &frmnum);
 
 #ifdef IODUMP
@@ -191,11 +212,13 @@ int tlbwrite(struct pcb_t * proc, BYTE data,
     // tlb_cache_write(proc->tlb, proc->pid, pgnum, value);
   } else {
     val = __write(proc, 0, destination, offset, data);
+
+    if( val == -1 ) printf("Error in tlbwrite(): __write() trong trường hợp MISS thất bại.\n");
     
     uint32_t miss_pte = proc->mm->pgd[pgnum];
     int fpn = PAGING_FPN(miss_pte);
     //printf("after: %u\n", miss_pte);
-    printf("tlbwrite: pgnum = %d, fpn = %d\n", pgnum, fpn);
+    //printf("tlbwrite: pgnum = %d, fpn = %d\n", pgnum, fpn);
     // miss nên cần cập nhật TLB
     int res = tlb_cache_write(proc->tlb, proc->pid, pgnum, fpn); 
     

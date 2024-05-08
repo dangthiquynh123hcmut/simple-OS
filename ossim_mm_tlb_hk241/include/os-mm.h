@@ -73,12 +73,20 @@ struct framephy_struct {
 struct tlbEntry {
    int pid;
    int valid;
+   int pgnum;
+};
+
+struct node {
+   int data;
+   struct node* next;
 };
 
 struct memphy_struct {
    /* Basic field of data and size */
+
    struct tlbEntry* help;
    BYTE *storage; // lưu fpn
+   struct node* tlb_fifo;
    int maxsz;
    
    /* Sequential device fields */ 

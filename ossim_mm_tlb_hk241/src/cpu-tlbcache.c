@@ -45,9 +45,11 @@ int tlb_cache_read(struct memphy_struct * mp, int pid, int pgnum, BYTE *value)
     // uint32_t pte = proc->mm->pgd[pgnum];
     // int fpn = PAGING_FPN(pte);
 
-    printf("tlb_cache_read:: valid = %d, pid = %d, pgn = %d, fpn = %d\n", mp->help[pgnum].valid, mp->help[pgnum].pid, pgnum, mp->storage[pgnum]);
-    if( mp->help[pgnum].valid == 1 && mp->help[pgnum].pid == pid ) 
-        return TLBMEMPHY_read(mp, pgnum, value);  // HIT
+    //printf("tlb_cache_read:: valid = %d, pid = %d, pgn = %d, fpn = %d\n", mp->help[pgnum].valid, mp->help[pgnum].pid, pgnum, mp->storage[pgnum]);
+    for(int i = 0; i<mp->maxsz; i++) {
+        if( mp->help[i].valid == 1 && mp->help[i].pid == pid && mp->help[i].pgnum == pgnum) 
+            return TLBMEMPHY_read(mp, i, value);  // HIT
+    }
     
     return -1;  
 }
@@ -69,14 +71,42 @@ int tlb_cache_write(struct memphy_struct *mp, int pid, int pgnum, BYTE value)
     if (mp == NULL)
         return -1; // Tham số không hợp lệ hoặc mp không tồn tại
 
-    mp->help[pgnum].valid = 1;
-    mp->help[pgnum].pid = pid;
+    for(int i = 0; i<mp->maxsz; i++) {
+        if( mp->help[i].valid == 0 )    // có entry trống 
+            mp->help[i].valid = 1;
+            mp->help[i].pid = pid;
+            mp->help[i].pgnum = pgnum;
 
-    // Ghi giá trị vào bộ nhớ vật lý
-    TLBMEMPHY_write(mp, pgnum, value);
+            if( mp->tlb_fifo == NULL ) {
+                mp->tlb_fifo = malloc(sizeof (struct node) );
+                mp->tlb_fifo->data = i;
+                mp->tlb_fifo->next = NULL;
+            } else {
+                struct node* newNode = mp->tlb_fifo; 
+                while(newNode->next != NULL) newNode = newNode->next;
+                newNode->next = malloc(sizeof (struct node) );
+                newNode->next->data = i;
+                newNode->next->next = NULL;
+            }
 
-    printf("tlb_cache_write: valid = %d, pid = %d, pgn = %d, fpn = %d\n", 
-        mp->help[pgnum].valid, mp->help[pgnum].pid, pgnum, mp->storage[pgnum]);
+            TLBMEMPHY_write(mp, i, value);
+    }
+
+    struct node* victim = mp->tlb_fifo;
+
+    if( victim == NULL ) {
+        printf("Error in tlbwrite(): tlb_fifo is NULL.\n");
+        return -1;
+    }
+
+    mp->tlb_fifo = mp->tlb_fifo->next;
+    mp->help[victim->data].pid = pid;
+    mp->help[victim->data].pgnum = pgnum;
+    TLBMEMPHY_write(mp, victim->data, value);
+    free(victim);
+
+    //printf("tlb_cache_write: valid = %d, pid = %d, pgn = %d, fpn = %d\n", 
+    //    mp->help[pgnum].valid, mp->help[pgnum].pid, pgnum, mp->storage[pgnum]);
     return 0;
     //return frame number;
 }
