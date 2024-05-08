@@ -33,6 +33,8 @@
 
 /* frmnum is return value of tlb_cache_read/write value*/
 
+
+
 int tlb_cache_read(struct memphy_struct * mp, int pid, int pgnum, BYTE *value)
 {
    /* TODO: the identify info is mapped to 
@@ -54,14 +56,14 @@ int tlb_cache_read(struct memphy_struct * mp, int pid, int pgnum, BYTE *value)
     return -1;  
 }
 
-/*
- *  tlb_cache_write write TLB cache device
- *  @mp: memphy struct
- *  @pid: process id
- *  @pgnum: page number
- *  @value: obtained value
- */
-// Nếu còn trống thì ghi vào, không thì swap
+// /*
+//  *  tlb_cache_write write TLB cache device
+//  *  @mp: memphy struct
+//  *  @pid: process id
+//  *  @pgnum: page number
+//  *  @value: obtained value
+//  */
+// // Nếu còn trống thì ghi vào, không thì swap
 int tlb_cache_write(struct memphy_struct *mp, int pid, int pgnum, BYTE value)
 {
    /* TODO: the identify info is mapped to 
@@ -71,12 +73,13 @@ int tlb_cache_write(struct memphy_struct *mp, int pid, int pgnum, BYTE value)
     if (mp == NULL)
         return -1; // Tham số không hợp lệ hoặc mp không tồn tại
 
+    int flag = 0;
     for(int i = 0; i<mp->maxsz; i++) {
-        if( mp->help[i].valid == 0 )    // có entry trống 
+        if( mp->help[i].valid == 0 ) {    // có entry trống 
             mp->help[i].valid = 1;
             mp->help[i].pid = pid;
             mp->help[i].pgnum = pgnum;
-
+            
             if( mp->tlb_fifo == NULL ) {
                 mp->tlb_fifo = malloc(sizeof (struct node) );
                 mp->tlb_fifo->data = i;
@@ -90,6 +93,9 @@ int tlb_cache_write(struct memphy_struct *mp, int pid, int pgnum, BYTE value)
             }
 
             TLBMEMPHY_write(mp, i, value);
+
+            break;
+        }
     }
 
     struct node* victim = mp->tlb_fifo;
@@ -110,6 +116,65 @@ int tlb_cache_write(struct memphy_struct *mp, int pid, int pgnum, BYTE value)
     return 0;
     //return frame number;
 }
+
+
+// int tlb_cache_read(struct memphy_struct * mp, int pid, int pgnum, BYTE value, int index)
+// {
+//     if (mp == NULL) 
+//         return -1; // Tham số không hợp lệ hoặc mp không tồn tại
+
+//     printf("max size = %d, index = %d\n", mp->maxsz, index);
+
+//     //printf("tlb_cache_read:: valid = %d, pid = %d, pgn = %d, fpn = %d\n", mp->help[pgnum].valid, mp->help[pgnum].pid, pgnum, mp->storage[pgnum]);
+//     if( mp->help[index].valid == 1 && mp->help[index].pid == pid && mp->help[index].pgnum == pgnum) {
+//         printf("check 126\n");
+//         return TLBMEMPHY_read(mp, index, value);  // HIT
+//         printf("check 128\n");
+//     }
+    
+//     return -1;  
+// }
+
+
+// int tlb_cache_write(struct memphy_struct *mp, int pid, int pgnum, BYTE value, int index)
+// {
+//     if (mp == NULL)
+//         return -1; // Tham số không hợp lệ hoặc mp không tồn tại
+
+//         if( mp->help[index].valid == 0 ) {   // có entry trống 
+//             mp->help[index].valid = 1;
+//             mp->help[index].pid = pid;
+//             mp->help[index].pgnum = pgnum;
+//         } else {
+//             if( mp->tlb_fifo == NULL ) {
+//                 mp->tlb_fifo = malloc(sizeof (struct node) );
+//                 mp->tlb_fifo->data = index;
+//                 mp->tlb_fifo->next = NULL;
+//             } else {
+//                 struct node* newNode = mp->tlb_fifo; 
+//                 while(newNode->next != NULL) newNode = newNode->next;
+//                 newNode->next = malloc(sizeof (struct node) );
+//                 newNode->next->data = index;
+//                 newNode->next->next = NULL;
+//             }
+
+//             TLBMEMPHY_write(mp, index, value);
+//         }
+//     struct node* victim = mp->tlb_fifo;
+
+//     if( victim == NULL ) {
+//         printf("Error in tlbwrite(): tlb_fifo is NULL.\n");
+//         return -1;
+//     }
+
+//     mp->tlb_fifo = mp->tlb_fifo->next;
+//     mp->help[victim->data].pid = pid;
+//     mp->help[victim->data].pgnum = pgnum;
+//     TLBMEMPHY_write(mp, victim->data, value);
+//     free(victim);
+//    return 0;
+// }
+
 
 /*
  *  TLBMEMPHY_read natively supports MEMPHY device interfaces

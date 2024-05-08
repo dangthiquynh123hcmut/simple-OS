@@ -96,8 +96,11 @@ int tlbread(struct pcb_t * proc, uint32_t source,
   //int index_in_tlb = pgnum % proc->tlb->maxsz;
   //printf("ADDRESS = %d, pgnum = %d\n", address, pgnum);
 
-  tlb_cache_read(proc->tlb, proc->pid, pgnum, &frmnum);
+  // direct mapping
+  int index = address % proc->tlb->maxsz;
 
+  // tlb_cache_read(proc->tlb, proc->pid, pgnum, &frmnum, index);
+  tlb_cache_read(proc->tlb, proc->pid, pgnum, &frmnum);
 #ifdef IODUMP
   if (frmnum >= 0)
     printf("TLB hit at read region=%d offset=%d\n", 
@@ -134,6 +137,8 @@ int tlbread(struct pcb_t * proc, uint32_t source,
     int fpn = PAGING_FPN(miss_pte);
   
     tlb_cache_write(proc->tlb, proc->pid, pgnum,(BYTE) fpn); 
+    // int des_index = destination % proc->tlb->maxsz;
+    // tlb_cache_write(proc->tlb, proc->pid, des_pgnum, (BYTE) des_fpn, des_index); 
   }
 
   /* TODO update TLB CACHED with frame num of recent accessing page(s)*/
@@ -144,7 +149,10 @@ int tlbread(struct pcb_t * proc, uint32_t source,
   int des_fpn = PAGING_FPN(pte);
   // Register destionation vừa được sử dụng để ghi kết quả đọc được vào
   // nên cần cập nhật TLB 
-  tlb_cache_write(proc->tlb, proc->pid, des_pgnum, (BYTE) des_fpn); 
+
+  int des_index = destination % proc->tlb->maxsz;
+
+  //tlb_cache_write(proc->tlb, proc->pid, des_pgnum, (BYTE) des_fpn, des_index); 
 
   printf("Sau khi read:\n");
 #ifdef PAGETBL_DUMP
@@ -179,6 +187,10 @@ int tlbwrite(struct pcb_t * proc, BYTE data,
   int address = proc->mm->symrgtbl[destination].rg_start + offset;
   int pgnum = PAGING_PGN(address);
   //printf("ADDRESS = %d, pgnum = %d\n", address, pgnum);
+
+  int index = address % proc->tlb->maxsz;
+
+  // tlb_cache_read(proc->tlb, proc->pid, pgnum, &frmnum, index);
   tlb_cache_read(proc->tlb, proc->pid, pgnum, &frmnum);
 
 #ifdef IODUMP
@@ -220,6 +232,7 @@ int tlbwrite(struct pcb_t * proc, BYTE data,
     //printf("after: %u\n", miss_pte);
     //printf("tlbwrite: pgnum = %d, fpn = %d\n", pgnum, fpn);
     // miss nên cần cập nhật TLB
+    // int res = tlb_cache_write(proc->tlb, proc->pid, pgnum, fpn, index); 
     int res = tlb_cache_write(proc->tlb, proc->pid, pgnum, fpn); 
     
     printf("Sau khi write:\n");
