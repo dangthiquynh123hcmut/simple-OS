@@ -93,7 +93,7 @@ int run(struct pcb_t * proc) {
 		printf("                                                Type of instruction: WRITE\n");
 #ifdef CPU_TLB
 		stat = tlbwrite(proc, ins.arg_0, ins.arg_1, ins.arg_2);
-		printf("Check params: data = %d, destination = %d, offset = %d\n", ins.arg_0, ins.arg_1, ins.arg_2);
+		// printf("Check params: data = %d, destination = %d, offset = %d\n", ins.arg_0, ins.arg_1, ins.arg_2);
 #elif defined(MM_PAGING)
 		stat = pgwrite(proc, ins.arg_0, ins.arg_1, ins.arg_2);
 #else

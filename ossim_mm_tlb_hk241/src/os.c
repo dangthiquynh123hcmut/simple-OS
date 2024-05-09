@@ -245,7 +245,9 @@ int main(int argc, char * argv[]) {
 	struct memphy_struct tlb;
 
 	init_tlbmemphy(&tlb, tlbsz);
-	// printf("check here\n");
+
+	//printf("tlbsize = %d.\n", tlbsz);
+	//printf("check here 248\n");
 #endif
 
 #ifdef MM_PAGING

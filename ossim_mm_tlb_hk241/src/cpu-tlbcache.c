@@ -86,6 +86,10 @@ int tlb_cache_write(struct memphy_struct *mp, int pid, int pgnum, BYTE value)
                 mp->tlb_fifo->next = NULL;
             } else {
                 struct node* newNode = mp->tlb_fifo; 
+                if(newNode == NULL) {
+                    printf("Error in cpu-tlbcache.c/ tlb_cache_write(): mp->tlb_fifo is NULL.\n");
+                    return -1;
+                }
                 while(newNode->next != NULL) newNode = newNode->next;
                 newNode->next = malloc(sizeof (struct node) );
                 newNode->next->data = i;
@@ -242,10 +246,13 @@ int init_tlbmemphy(struct memphy_struct *mp, int max_size)
 {
    mp->help = (struct tlbEntry *)malloc(max_size*sizeof(struct tlbEntry));
    // invalid = 0, valid = 1 
-   for (int i = 0; i < max_size; i++) mp->help[i].valid = 0;
+   for (int i = 0; i < max_size; i++) {
+    mp->help[i].valid = 0;
+   }
 
    mp->storage = (BYTE *)malloc(max_size*sizeof(BYTE));
    mp->maxsz = max_size;
+   mp->tlb_fifo = NULL;
 
    mp->rdmflg = 1;
 
