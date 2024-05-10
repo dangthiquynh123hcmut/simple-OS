@@ -8,12 +8,16 @@
 #include "mm.h"
 #include <stdlib.h>
 #include <stdio.h>
+#include <pthread.h>
 
 /*enlist_vm_freerg_list - add new rg to freerg_list
  *@mm: memory region
  *@rg_elmt: new region
  *
  */
+
+static pthread_mutex_t vm_lock = PTHREAD_MUTEX_INITIALIZER;
+
 // add head, add rg_elmt in the head of mm->mmap->vm_freerg_list (vmaid = 0)
 int enlist_vm_freerg_list(struct mm_struct *mm, struct vm_rg_struct* rg_elmt)
 {
@@ -82,6 +86,9 @@ int __alloc(struct pcb_t *caller, int vmaid, int rgid, int size, int *alloc_addr
 {
   /*Allocate at the toproof */
   struct vm_rg_struct rgnode;
+
+  pthread_mutex_lock(&vm_lock);
+
   //printf("Checked here\n");
   if (get_free_vmrg_area(caller, vmaid, size, &rgnode) == 0)
   { 
@@ -94,6 +101,8 @@ int __alloc(struct pcb_t *caller, int vmaid, int rgid, int size, int *alloc_addr
     printf("Case 1: ");
     printf ("Alloc region = %d, size = %d, pid = %d\n", rgid, size, caller->pid);
     printf("Check: region->rg_start = %d, region->rg_end = %d.\n", caller->mm->symrgtbl[rgid].rg_start, caller->mm->symrgtbl[rgid].rg_end);
+    
+    pthread_mutex_unlock(&vm_lock);
     return 0;
   }
   //printf("Checked here\n");
@@ -104,6 +113,8 @@ int __alloc(struct pcb_t *caller, int vmaid, int rgid, int size, int *alloc_addr
   {
     printf ("Error in: mm-vm.c/ __alloc() :");
     printf (" virtual memory area %d does not exist.\n", vmaid);
+
+    pthread_mutex_unlock(&vm_lock);
     return -1;
   }
   int gap = cur_vma->vm_end - cur_vma->sbrk;
@@ -119,6 +130,8 @@ int __alloc(struct pcb_t *caller, int vmaid, int rgid, int size, int *alloc_addr
     printf("Case 2: ");
     printf ("Alloc region = %d, size = %d, pid = %d\n", rgid, size, caller->pid);
     printf("Check: region->rg_start = %d, region->rg_end = %d.\n", caller->mm->symrgtbl[rgid].rg_start, caller->mm->symrgtbl[rgid].rg_end);
+    
+    pthread_mutex_unlock(&vm_lock);
     return 0;
   }
 
@@ -136,6 +149,8 @@ int __alloc(struct pcb_t *caller, int vmaid, int rgid, int size, int *alloc_addr
   {
     printf ("Error in: mm-vm.c/ __alloc() :");
     printf (" inc_vma_limit() The limit cannot be increased.\n");
+
+    pthread_mutex_unlock(&vm_lock);
     return -1;
   }
 
@@ -152,6 +167,8 @@ int __alloc(struct pcb_t *caller, int vmaid, int rgid, int size, int *alloc_addr
   printf("Case 3: ");
   printf ("Alloc region = %d, size = %d, pid = %d\n", rgid, size, caller->pid);
   printf("Check: region->rg_start = %d, region->rg_end = %d.\n", caller->mm->symrgtbl[rgid].rg_start, caller->mm->symrgtbl[rgid].rg_end);
+  
+  pthread_mutex_unlock(&vm_lock);
   return 0;
 }
 
@@ -178,6 +195,8 @@ int __free(struct pcb_t *caller, int vmaid, int rgid)
     printf (" region %d does not exist.\n", rgid);
     return -1;
   }
+
+  pthread_mutex_lock(&vm_lock);
 
   // xóa trong fifo
   int pgnum = PAGING_PGN(temp->rg_start);
@@ -212,6 +231,8 @@ int __free(struct pcb_t *caller, int vmaid, int rgid)
   enlist_vm_freerg_list(caller->mm, rgnode);
 
   printf ("Free region = %d, pid = %d.\n", rgid, caller->pid);
+
+  pthread_mutex_unlock(&vm_lock);
 
   return 0;
 }
@@ -445,7 +466,9 @@ int __read(struct pcb_t *caller, int vmaid, int rgid, int offset, BYTE *data)
     return -1;
   }
 
+  pthread_mutex_lock(&vm_lock);
   pg_getval(caller->mm, currg->rg_start + offset, data, caller);
+  pthread_mutex_unlock(&vm_lock);
 
   return 0;
 }
@@ -504,7 +527,9 @@ int __write(struct pcb_t *caller, int vmaid, int rgid, int offset, BYTE value)
     return -1;
   }
 
+  pthread_mutex_unlock(&vm_lock);
   pg_setval(caller->mm, currg->rg_start + offset, value, caller);
+  pthread_mutex_unlock(&vm_lock);
 
   return 0;
 }

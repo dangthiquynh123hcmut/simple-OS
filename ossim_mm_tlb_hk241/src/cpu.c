@@ -2,6 +2,9 @@
 #include "cpu.h"
 #include "mem.h"
 #include "mm.h"
+#include <pthread.h>
+
+
 
 int calc(struct pcb_t * proc) {
 	return ((unsigned long)proc & 0UL);
@@ -45,6 +48,8 @@ int write(
 	return write_mem(proc->regs[destination] + offset, proc, data);
 } 
 
+static pthread_mutex_t lock = PTHREAD_MUTEX_INITIALIZER;
+
 int run(struct pcb_t * proc) {
 	/* Check if Program Counter point to the proper instruction */
 	if (proc->pc >= proc->code->size) {
@@ -54,6 +59,9 @@ int run(struct pcb_t * proc) {
 	struct inst_t ins = proc->code->text[proc->pc];
 	proc->pc++;
 	int stat = 1;
+
+	pthread_mutex_lock(&lock);
+
 	switch (ins.opcode) {
 	case CALC:
 		printf("                                                Type of instruction: CALC\n");
@@ -103,6 +111,8 @@ int run(struct pcb_t * proc) {
 	default:
 		stat = 1;
 	}
+
+	pthread_mutex_unlock(&lock);
 
 	if (stat == -1) // Handle instruction fault.
                     // If an instruction does not execute

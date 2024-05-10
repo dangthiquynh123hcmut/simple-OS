@@ -385,7 +385,18 @@ int print_pgtbl(struct pcb_t *caller, uint32_t start, uint32_t end)
   }
   pgn_start = PAGING_PGN(start);
   pgn_end = PAGING_PGN(end);
+#ifdef CPU_TLB
+  printf("%-6s %-8s %-6s %-8s %-4s\n", "index", "valid", "pid", "pgnum", "fpn");
+  for (int i = 0; i < caller->tlb->maxsz; i++) {
+      struct tlbEntry* temp = caller->tlb->help;
+      if (temp[i].valid != 0) {
+          printf("%-6d %-8d %-6d %-8d %-4d\n", i, temp[i].valid, temp[i].pid, temp[i].pgnum, caller->tlb->storage[i]);
+      } else {
+          printf("%-6d %-8d\n", i, 0);
+      }
+  }
 
+#else
   printf("print_pgtbl: %d - %d", start, end);
   if (caller == NULL) {printf("NULL caller\n"); return -1;}
     printf("\n");
@@ -395,6 +406,7 @@ int print_pgtbl(struct pcb_t *caller, uint32_t start, uint32_t end)
   {
      printf("%08ld: %08x\n", pgit * sizeof(uint32_t), caller->mm->pgd[pgit]);
   }
+#endif
 
   return 0;
 }
