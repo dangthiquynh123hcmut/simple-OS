@@ -159,6 +159,10 @@ int tlbread(struct pcb_t * proc, uint32_t source,
 #endif
   }
 
+  printf("\n");
+  float rate=stat_hit_time/(stat_hit_time+ stat_miss_time);
+  printf("Rate hit now: %.2f\n",rate);
+  printf("\n");
 
   // Hit
   if( frmnum >= 0 ) {
@@ -239,14 +243,27 @@ int tlbwrite(struct pcb_t * proc, BYTE data,
   tlb_cache_read(proc->tlb, proc->pid, pgnum, &frmnum);
 
 #ifdef IODUMP
-  if (frmnum >= 0)
-    printf("TLB hit at write region=%d offset=%d value=%d\n",
+  
+  if (frmnum >= 0) {
+    printf("\tTLB hit at write region=%d offset=%d value=%d\n",
 	          destination, offset, data);
-	else
-    printf("TLB miss at write region=%d offset=%d value=%d\n",
+    pthread_mutex_lock(&mmvm_lock);
+    stat_hit_time ++;
+    pthread_mutex_unlock(&mmvm_lock);
+  }
+	else {
+    printf("\tTLB miss at write region=%d offset=%d value=%d\n",
             destination, offset, data);
-
-
+    pthread_mutex_lock(&mmvm_lock);
+    stat_miss_time ++;
+    pthread_mutex_unlock(&mmvm_lock);
+    //tlb_cache_write(proc->tlb, proc, pgn);
+  }
+  printf("\n");
+  float rate=stat_hit_time/(stat_hit_time+ stat_miss_time);
+  printf("Rate hit now: %.2f\n",rate);
+  printf("\n");
+  
   printf("pgnum = %d, fpn = %d.\n", pgnum, frmnum);
   printf("before write:\n");
 #ifdef PAGETBL_DUMP

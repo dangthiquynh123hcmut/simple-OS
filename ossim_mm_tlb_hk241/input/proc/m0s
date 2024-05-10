@@ -1,3 +1,7 @@
-1 2
-alloc 300 0
-write 100 0 256
+1 6
+alloc 3000 0
+alloc 300 1
+alloc 300 2
+write 10 0 25
+write 20 1 26
+read 1 20 25
