@@ -76,7 +76,7 @@ struct pcb_t {
 	uint32_t prio;     
 #endif
 #ifdef CPU_TLB
-	struct memphy_struct *tlb;
+	//struct memphy_struct *tlb;
 #endif
 #ifdef MM_PAGING
 	struct mm_struct *mm;
@@ -86,7 +86,7 @@ struct pcb_t {
 #endif
 	struct page_table_t * page_table; // Page table
 	uint32_t bp;	// Break pointer
-
+	struct memphy_struct *tlb;
 };
 
 #endif

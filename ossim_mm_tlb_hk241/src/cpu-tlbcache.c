@@ -20,6 +20,10 @@
 #include "mm.h"
 #include <stdlib.h>
 #include <stdio.h>
+#include <pthread.h>
+#include <string.h>
+
+static pthread_mutex_t mmvm_lock = PTHREAD_MUTEX_INITIALIZER;
 
 #define init_tlbcache(mp,sz,...) init_memphy(mp, sz, (1, ##__VA_ARGS__))
 
@@ -193,8 +197,11 @@ int TLBMEMPHY_read(struct memphy_struct * mp, int addr, BYTE *value)
    if (mp == NULL)
      return -1;
 
+    pthread_mutex_lock(&mmvm_lock);
    /* TLB cached is random access by native */
    *value = mp->storage[addr];
+
+   pthread_mutex_unlock(&mmvm_lock);
 
    return 0;
 }
@@ -210,9 +217,12 @@ int TLBMEMPHY_write(struct memphy_struct * mp, int addr, BYTE data)
 {
    if (mp == NULL)
      return -1;
-
+    
+    pthread_mutex_lock(&mmvm_lock);
    /* TLB cached is random access by native */
    mp->storage[addr] = data;
+
+   pthread_mutex_unlock(&mmvm_lock);
 
    return 0;
 }
@@ -230,10 +240,23 @@ int TLBMEMPHY_dump(struct memphy_struct * mp)
        return -1;
    }
 
-   printf("Memory physical content:\n");
-   for (int i = 0; i < mp->maxsz; i++) {
-       printf("%d: %d\n", i, mp->storage[i]);
+//    printf("Memory physical content:\n");
+//    for (int i = 0; i < mp->maxsz; i++) {
+//        printf("%d: %d\n", i, mp->storage[i]);
+//    }
+
+
+    printf("\t\tPHYSICAL MEMORY (TLB CACHE) DUMP :\n");
+   for (int i = 0; i < mp->maxsz; ++i)
+   {
+      if (mp->storage[i] != -1)
+      {
+
+         printf("BYTE %08x: %d\n", i, mp->storage[i]);
+      }
    }
+
+   printf("\t\tPHYSICAL MEMORY END-DUMP\n");
 
    return 0;
 }

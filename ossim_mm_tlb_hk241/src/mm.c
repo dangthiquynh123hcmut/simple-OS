@@ -100,7 +100,7 @@ int vmap_page_range(struct pcb_t *caller, // process call
     if (pg_getpage (caller->mm, pgn, &fpn, caller) != 0) 
     {
       printf ("Error in: mm.c/ vmap_page_range() :");
-      printf (" pg_getpage() không thành công.\n");
+      printf (" pg_getpage() is unsuccessful.\n");
       return -1;
     }
     addr += PAGING_PAGESZ;

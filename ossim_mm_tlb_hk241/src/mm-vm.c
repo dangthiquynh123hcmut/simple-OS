@@ -103,7 +103,7 @@ int __alloc(struct pcb_t *caller, int vmaid, int rgid, int size, int *alloc_addr
   if (cur_vma == NULL)
   {
     printf ("Error in: mm-vm.c/ __alloc() :");
-    printf (" virtual memory area %d không tồn tại.\n", vmaid);
+    printf (" virtual memory area %d does not exist.\n", vmaid);
     return -1;
   }
   int gap = cur_vma->vm_end - cur_vma->sbrk;
@@ -135,7 +135,7 @@ int __alloc(struct pcb_t *caller, int vmaid, int rgid, int size, int *alloc_addr
   if (inc_vma_limit (caller, vmaid, inc_sz) != 0)
   {
     printf ("Error in: mm-vm.c/ __alloc() :");
-    printf (" inc_vma_limit() không thể tăng giới hạn.\n");
+    printf (" inc_vma_limit() The limit cannot be increased.\n");
     return -1;
   }
 
@@ -175,7 +175,7 @@ int __free(struct pcb_t *caller, int vmaid, int rgid)
   {
     printf ("Error in: mm-vm.c/ __free() :");
     //printf ("Region %d hoặc virtual memory area %d không tồn tại.\n", rgid, vmaid);
-    printf (" region %d không tồn tại.\n", rgid);
+    printf (" region %d does not exist.\n", rgid);
     return -1;
   }
 
@@ -252,7 +252,7 @@ int pg_getpage(struct mm_struct *mm, int pgn, int *fpn, struct pcb_t *caller)
       //printf("check pgn = %d, fpn = %d, mm->pgd[pgn] = %u\n", pgn, fpn, mm->pgd[pgn]);
       //printf("check pte = %u, pgnu = %d\n", pte, pgn);
 
-      printf("Lấy free frame physical thành công: pgnum = %d, freefpn = %d.\n", pgn, freefpn);
+      printf("Successfully acquired a free physical frame: pgnum = %d, freefpn = %d.\n", pgn, freefpn);
 
       //uint32_t miss_pte = mm->pgd[pgn];
       //printf("check pte: %u\n", miss_pte);
@@ -267,7 +267,7 @@ int pg_getpage(struct mm_struct *mm, int pgn, int *fpn, struct pcb_t *caller)
       /* Find victim page */
       if (find_victim_page(caller->mm, &vicpgn) == -1)
       {
-        printf("Lấy victim page thất bại.\n");
+        printf("Failed to retrieve victim page.\n");
         return -1;
       }
       
@@ -413,14 +413,14 @@ int __read(struct pcb_t *caller, int vmaid, int rgid, int offset, BYTE *data)
   if (currg == NULL) /* Invalid memory identify */
   {
     printf ("Error in: mm-vm.c/ __read() :");
-    printf (" region %d không tồn tại.\n", rgid, vmaid);
+    printf (" region %d does not exist.\n", rgid, vmaid);
     return -1;
   }
 
   if (currg->rg_start + offset < currg->rg_start || currg->rg_start + offset > currg->rg_end)
   {
     printf ("Error in: mm-vm.c/ __read() :");
-    printf (" truy cập out-of-range region.\n");
+    printf (" Access out-of-range region.\n");
     return -1;
   }
 
@@ -472,14 +472,14 @@ int __write(struct pcb_t *caller, int vmaid, int rgid, int offset, BYTE value)
   if (currg == NULL) /* Invalid memory identify */
   {
     printf ("Error in: mm-vm.c/ __read() :");
-    printf (" region %d không tồn tại.\n", rgid, vmaid);
+    printf (" region %d does not exist.\n", rgid, vmaid);
     return -1;
   }
 
   if (currg->rg_start + offset < currg->rg_start || currg->rg_start + offset > currg->rg_end)
   {
     printf ("Error in: mm-vm.c/ __write() :");
-    printf (" truy cập out-of-range region.\n");
+    printf (" Access out-of-range region.\n");
     return -1;
   }
 
@@ -498,7 +498,7 @@ int pgwrite(
 //trước khi write
 #ifdef IODUMP
   printf("write region = %d offset = %d value = %d\n", destination, offset, data);
-  printf("Trước khi write:\n");
+  printf("Before write:\n");
 #ifdef PAGETBL_DUMP
   print_pgtbl(proc, 0, -1); // print max TBL
 #endif
@@ -513,7 +513,7 @@ int pgwrite(
   }
 //sau khi write
 #ifdef IODUMP
-  printf("Sau khi write:\n");
+  printf("After khi write:\n");
 #ifdef PAGETBL_DUMP
   print_pgtbl(proc, 0, -1); // print max TBL
 #endif
@@ -629,7 +629,7 @@ int inc_vma_limit(struct pcb_t *caller, int vmaid, int inc_sz)
   // int vm_map_ram(struct pcb_t *caller, int astart, int aend, int mapstart, int incpgnum, struct vm_rg_struct *ret_rg)
   if (vm_map_ram(caller, area->rg_start, area->rg_end, old_end, incnumpage, newrg) < 0) {
     printf ("Error in: mm-vm.c/ inc_vma_limit() :");
-    printf(" vm_map_ram() không thành công.\n");
+    printf(" vm_map_ram() is unsuccessful..\n");
     return -1; /* Map the memory to MEMRAM */
   }
   free(newrg); // cần không?
@@ -685,7 +685,7 @@ int get_free_vmrg_area(struct pcb_t *caller, int vmaid, int size, struct vm_rg_s
   if (cur_vma == NULL) /* Invalid memory identify */
   {
     printf ("Error in: mm-vm.c/ get_free_vmrg_area() :");
-    printf (" virtual memory area %d không tồn tại.\n", vmaid);
+    printf (" virtual memory area %d does not exist.\n", vmaid);
     return -1;
   }
 

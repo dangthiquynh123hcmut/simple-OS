@@ -248,6 +248,7 @@ int main(int argc, char * argv[]) {
 
 	//printf("tlbsize = %d.\n", tlbsz);
 	//printf("check here 248\n");
+	//mm_ld_args->tlb = (struct memphy_struct *) &tlb;
 #endif
 
 #ifdef MM_PAGING
@@ -274,7 +275,7 @@ int main(int argc, char * argv[]) {
 	mm_ld_args->mswp = (struct memphy_struct**) &mswp;
 	mm_ld_args->active_mswp = (struct memphy_struct *) &mswp[0];
 
-	mm_ld_args->tlb = (struct memphy_struct *) &tlb;
+	//mm_ld_args->tlb = (struct memphy_struct *) &tlb;
 
 #endif
 

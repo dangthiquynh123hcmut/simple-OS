@@ -109,7 +109,7 @@ int run(struct pcb_t * proc) {
                     // as expected, the program aborts
     {
     	printf("\n\n");
-        printf ("STOP: in cpu.c/ run(): Có lỗi xảy ra.\n");
+        printf ("STOP: in cpu.c/ run(): An error occurred.\n");
         exit(0);
     }
 

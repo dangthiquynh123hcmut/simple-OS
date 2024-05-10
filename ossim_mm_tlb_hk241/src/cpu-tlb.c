@@ -15,7 +15,11 @@
 #include "mm.h"
 #include <stdlib.h>
 #include <stdio.h>
+#include <pthread.h>
 
+static pthread_mutex_t mmvm_lock = PTHREAD_MUTEX_INITIALIZER;
+int stat_hit_time=0;
+int stat_miss_time=0;
 int tlb_change_all_page_tables_of(struct pcb_t *proc,  struct memphy_struct * mp)
 {
   /* TODO update all page table directory info 
@@ -45,6 +49,10 @@ int tlballoc(struct pcb_t *proc, uint32_t size, uint32_t reg_index)
 
   /* By default using vmaid = 0 */
   val = __alloc(proc, 0, reg_index, size, &addr);
+  if(val == -1 ) {
+    printf("Error in cpu-tlb.c/ tlballoc(): Allocation fails.\n");
+    return -1;
+  }
 
   /* TODO update TLB CACHED frame num of the new allocated page(s)*/
   /* by using tlb_cache_read()/tlb_cache_write()*/
@@ -60,7 +68,12 @@ int tlballoc(struct pcb_t *proc, uint32_t size, uint32_t reg_index)
     addr += PAGING_PAGESZ;
   }
 
+#ifdef IODUMP
+  printf("In tlballoc print:\n");
 
+  print_pgtbl(proc, 0, -1); // print max TBL
+   printf("In tlballoc print end.\n");
+#endif
   //printf("pgnum = %d, fpn = %d.\n", pgnum, fpn);
 
   return val;
@@ -83,11 +96,11 @@ int tlbfree_data(struct pcb_t *proc, uint32_t reg_index)
   for(int i = 0; i<proc->tlb->maxsz; i++) {
     if( proc->tlb->help[i].valid == 1 && proc->tlb->help[i].pid == proc->pid && proc->tlb->help[i].pgnum == pgnum) {
       proc->tlb->help[i].valid == 0;
-      return TLBMEMPHY_read(proc->tlb, i, -1);
+      return TLBMEMPHY_write(proc->tlb, i, -1);
     }
   }
 
-  printf("Error in tlbfree_data(): Không tìm thấy trong TLB.\n");
+  //printf("Error in tlbfree_data(): Không tìm thấy trong TLB.\n");
 
   return 0;
 }
@@ -111,7 +124,7 @@ int tlbread(struct pcb_t * proc, uint32_t source,
   /* frmnum is return value of tlb_cache_read/write value*/
 
   if( proc->mm->symrgtbl[source].rg_start == proc->mm->symrgtbl[source].rg_end ) {
-    printf("Error in tlbread(): read vùng chưa khởi tạo!\n");
+    printf("Error in tlbread(): Read uninitialized memory region!\n");
     return -1;
   }
 
@@ -124,17 +137,28 @@ int tlbread(struct pcb_t * proc, uint32_t source,
   // tlb_cache_read(proc->tlb, proc->pid, pgnum, &frmnum, index);
   tlb_cache_read(proc->tlb, proc->pid, pgnum, &frmnum);
 #ifdef IODUMP
-  if (frmnum >= 0)
-    printf("TLB hit at read region=%d offset=%d\n", 
+    if (frmnum >= 0) {
+    printf("\tTLB hit at read region=%d offset=%d\n", 
 	         source, offset);
-  else 
-    printf("TLB miss at read region=%d offset=%d\n", 
+    pthread_mutex_lock(&mmvm_lock);
+    stat_hit_time ++;
+    pthread_mutex_unlock(&mmvm_lock);
+  }
+  else {    
+    printf("\tTLB miss at read region=%d offset=%d\n", 
 	         source, offset);
-#ifdef PAGETBL_DUMP
+    pthread_mutex_lock(&mmvm_lock);
+    stat_miss_time ++;
+    pthread_mutex_unlock(&mmvm_lock);
+   // tlb_cache_write(proc->tlb, proc, pgn);
+ printf("\tPrint TLB before reading from memory:\n" );
+   #ifdef PAGETBL_DUMP
   print_pgtbl(proc, 0, -1); //print max TBL
 #endif
   MEMPHY_dump(proc->mram);
 #endif
+  }
+
 
   // Hit
   if( frmnum >= 0 ) {
@@ -151,7 +175,9 @@ int tlbread(struct pcb_t * proc, uint32_t source,
     // sử dụng page table
     val = __read(proc, 0, source, offset, &data);
 
-    if( val == -1 ) printf("Error in tlbread(): __read() trong trường hợp MISS thất bại.\n");
+    if( val == -1 ){ printf("Error in tlbread(): __read() Reading fails when a TLB miss occurs.\n");
+     return -1;
+    }
 
     destination = (uint32_t) data; 
     // frame fpn vừa được đọc và không có trong TLB nên cần thêm vào 
@@ -161,7 +187,12 @@ int tlbread(struct pcb_t * proc, uint32_t source,
     tlb_cache_write(proc->tlb, proc->pid, pgnum,(BYTE) fpn); 
     // int des_index = destination % proc->tlb->maxsz;
     // tlb_cache_write(proc->tlb, proc->pid, des_pgnum, (BYTE) des_fpn, des_index); 
-  }
+printf("After reading from memory into TLB\n");
+#ifdef PAGETBL_DUMP
+  print_pgtbl(proc, 0, -1); //print max TBL
+#endif
+  MEMPHY_dump(proc->mram);
+}
 
   /* TODO update TLB CACHED with frame num of recent accessing page(s)*/
   /* by using tlb_cache_read()/tlb_cache_write()*/
@@ -175,13 +206,6 @@ int tlbread(struct pcb_t * proc, uint32_t source,
   int des_index = destination % proc->tlb->maxsz;
 
   //tlb_cache_write(proc->tlb, proc->pid, des_pgnum, (BYTE) des_fpn, des_index); 
-
-  printf("Sau khi read:\n");
-#ifdef PAGETBL_DUMP
-  print_pgtbl(proc, 0, -1); //print max TBL
-#endif
-  MEMPHY_dump(proc->mram);
-  
   return val;
 }
 
@@ -202,7 +226,7 @@ int tlbwrite(struct pcb_t * proc, BYTE data,
   frmnum is return value of tlb_cache_read/write value*/
   
   if( proc->mm->symrgtbl[destination].rg_start == proc->mm->symrgtbl[destination].rg_end ) {
-    printf("Error in tlbwrite(): write vào vùng chưa khởi tạo!\n");
+    printf("Error in tlbwrite(): Write to uninitialized memory region!\n");
     return -1;
   }
 
@@ -224,7 +248,7 @@ int tlbwrite(struct pcb_t * proc, BYTE data,
 
 
   printf("pgnum = %d, fpn = %d.\n", pgnum, frmnum);
-  printf("Trước khi write:\n");
+  printf("before write:\n");
 #ifdef PAGETBL_DUMP
   print_pgtbl(proc, 0, -1); // print max TBL
 #endif
@@ -240,7 +264,9 @@ int tlbwrite(struct pcb_t * proc, BYTE data,
   } else {
     val = __write(proc, 0, destination, offset, data);
 
-    if( val == -1 ) printf("Error in tlbwrite(): __write() trong trường hợp MISS thất bại.\n");
+    if( val == -1 ) {printf("Error in tlbwrite(): __write() Writing fails when a TLB miss occurs.\n");
+      return -1;
+    }
     
     uint32_t miss_pte = proc->mm->pgd[pgnum];
     int fpn = miss_pte & 0xFFF; //PAGING_FPN(miss_pte);
@@ -253,7 +279,7 @@ int tlbwrite(struct pcb_t * proc, BYTE data,
     printf("fpn = %d, pgnum = %d\n", fpn, pgnum);
   }
 
-  printf("Sau khi write:\n");
+  printf("After write:\n");
 #ifdef PAGETBL_DUMP
   print_pgtbl(proc, 0, -1); //print max TBL
 #endif
