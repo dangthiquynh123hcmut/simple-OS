@@ -179,6 +179,27 @@ int __free(struct pcb_t *caller, int vmaid, int rgid)
     return -1;
   }
 
+  // xóa trong fifo
+  int pgnum = PAGING_PGN(temp->rg_start);
+  struct pgn_t* deleted = caller->mm->fifo_pgn;
+  if (deleted->pgn == pgnum) {
+    // Nếu nút cần xóa là nút đầu tiên
+    caller->mm->fifo_pgn = caller->mm->fifo_pgn->pg_next;
+    free(deleted);
+  } else {
+    struct pgn_t* prev = deleted;
+    deleted = deleted->pg_next;
+    while (deleted != NULL) {
+      if (deleted->pgn == pgnum) {
+        prev->pg_next = deleted->pg_next;
+        free(deleted);
+        break; // Đã xóa nút, không cần duyệt nữa
+      }
+      prev = deleted;
+      deleted = deleted->pg_next;
+    }
+  }
+
   struct vm_rg_struct *rgnode = malloc(sizeof(struct vm_rg_struct));
   rgnode->rg_start = temp->rg_start;
   rgnode->rg_end = temp->rg_end;

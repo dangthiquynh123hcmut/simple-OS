@@ -168,7 +168,12 @@ static void read_config(const char * path) {
 	 * Format:
 	 *        CPU_TLBSZ
 	*/
-	fscanf(file, "%d\n", &tlbsz);
+	// valid: 1 bit, pid: 16 bit, page num: 14 bit, frame num: 12 bit => 43 bit
+	// lấy gần nhất là 64 bit = 8 byte
+	int temp = 0;
+	fscanf(file, "%d\n", &temp);
+	tlbsz = temp/8;
+	//printf("CHECK TLB SIZE: %d\n", tlbsz);
 #endif
 #endif
 
@@ -245,7 +250,7 @@ int main(int argc, char * argv[]) {
 	struct memphy_struct tlb;
 
 	init_tlbmemphy(&tlb, tlbsz);
-
+ 
 	//printf("tlbsize = %d.\n", tlbsz);
 	//printf("check here 248\n");
 	//mm_ld_args->tlb = (struct memphy_struct *) &tlb;

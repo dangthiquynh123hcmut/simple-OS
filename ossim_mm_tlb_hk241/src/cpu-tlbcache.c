@@ -77,7 +77,6 @@ int tlb_cache_write(struct memphy_struct *mp, int pid, int pgnum, BYTE value)
     if (mp == NULL)
         return -1; // Tham số không hợp lệ hoặc mp không tồn tại
 
-    int flag = 0;
     for(int i = 0; i<mp->maxsz; i++) {
         if( mp->help[i].valid == 0 ) {    // có entry trống 
             mp->help[i].valid = 1;
@@ -102,10 +101,11 @@ int tlb_cache_write(struct memphy_struct *mp, int pid, int pgnum, BYTE value)
 
             TLBMEMPHY_write(mp, i, value);
 
-            break;
+            return 0;
         }
     }
 
+    // SWAP
     struct node* victim = mp->tlb_fifo;
 
     if( victim == NULL ) {
@@ -117,10 +117,25 @@ int tlb_cache_write(struct memphy_struct *mp, int pid, int pgnum, BYTE value)
     mp->help[victim->data].pid = pid;
     mp->help[victim->data].pgnum = pgnum;
     TLBMEMPHY_write(mp, victim->data, value);
+
+    if( mp->tlb_fifo == NULL ) {
+        mp->tlb_fifo = malloc(sizeof (struct node) );
+        mp->tlb_fifo->data = victim->data;
+        mp->tlb_fifo->next = NULL;
+    } else {
+        struct node* newNode = mp->tlb_fifo; 
+        if(newNode == NULL) {
+            printf("Error in cpu-tlbcache.c/ tlb_cache_write(): mp->tlb_fifo is NULL.\n");
+            return -1;
+        }
+        while(newNode->next != NULL) newNode = newNode->next;
+        newNode->next = malloc(sizeof (struct node) );
+        newNode->next->data = victim->data;
+        newNode->next->next = NULL;
+    }
+
     free(victim);
 
-    //printf("tlb_cache_write: valid = %d, pid = %d, pgn = %d, fpn = %d\n", 
-    //    mp->help[pgnum].valid, mp->help[pgnum].pid, pgnum, mp->storage[pgnum]);
     return 0;
     //return frame number;
 }

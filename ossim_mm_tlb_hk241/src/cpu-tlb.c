@@ -18,8 +18,8 @@
 #include <pthread.h>
 
 static pthread_mutex_t mmvm_lock = PTHREAD_MUTEX_INITIALIZER;
-int stat_hit_time=0;
-int stat_miss_time=0;
+static int stat_hit_time=0;
+static int stat_miss_time=0;
 int tlb_change_all_page_tables_of(struct pcb_t *proc,  struct memphy_struct * mp)
 {
   /* TODO update all page table directory info 
@@ -45,6 +45,18 @@ int tlb_flush_tlb_of(struct pcb_t *proc, struct memphy_struct * mp)
  */
 int tlballoc(struct pcb_t *proc, uint32_t size, uint32_t reg_index)
 {
+
+  // printf("Before ALLOC:\n");
+  // if(proc->tlb->tlb_fifo) {
+  //   struct node* temp = proc->tlb->tlb_fifo;
+  //   while(temp) {
+  //     printf("TLB FIFO: %d\n", temp->data); 
+  //     temp = temp->next;
+  //   }
+  // } else {
+  //   printf("TLB FIFO is NULL\n"); 
+  // }
+
   int addr, val;
 
   /* By default using vmaid = 0 */
@@ -65,6 +77,7 @@ int tlballoc(struct pcb_t *proc, uint32_t size, uint32_t reg_index)
     uint32_t pte = proc->mm->pgd[pgnum];
     int fpn = pte & 0xFFF; //PAGING_FPN(pte);
     tlb_cache_write(proc->tlb, proc->pid, pgnum,(BYTE) fpn); 
+
     addr += PAGING_PAGESZ;
   }
 
@@ -75,6 +88,20 @@ int tlballoc(struct pcb_t *proc, uint32_t size, uint32_t reg_index)
    printf("In tlballoc print end.\n");
 #endif
   //printf("pgnum = %d, fpn = %d.\n", pgnum, fpn);
+
+  
+
+  // printf("After ALLOC:\n");
+  // if(proc->tlb->tlb_fifo) {
+  //   struct node* temp = proc->tlb->tlb_fifo;
+  //   while(temp) {
+  //     int idx = temp->data;
+  //     printf("TLB FIFO: pgnum = %d\n", proc->tlb->help[idx].pgnum); 
+  //     temp = temp->next;
+  //   }
+  // } else {
+  //   printf("TLB FIFO is NULL\n"); 
+  // }
 
   return val;
 }
@@ -96,7 +123,29 @@ int tlbfree_data(struct pcb_t *proc, uint32_t reg_index)
   for(int i = 0; i<proc->tlb->maxsz; i++) {
     if( proc->tlb->help[i].valid == 1 && proc->tlb->help[i].pid == proc->pid && proc->tlb->help[i].pgnum == pgnum) {
       proc->tlb->help[i].valid == 0;
-      return TLBMEMPHY_write(proc->tlb, i, -1);
+
+      // xóa trong fifo
+      struct node* deleted = proc->tlb->tlb_fifo;
+      if (deleted->data == i) {
+          // Nếu nút cần xóa là nút đầu tiên
+          proc->tlb->tlb_fifo = proc->tlb->tlb_fifo->next;
+          free(deleted);
+      } else {
+          struct node* prev = deleted;
+          deleted = deleted->next;
+          while (deleted != NULL) {
+              if (deleted->data == i) {
+                  prev->next = deleted->next;
+                  free(deleted);
+                  break; // Đã xóa nút, không cần duyệt nữa
+              }
+              prev = deleted;
+              deleted = deleted->next;
+          }
+      }
+
+
+      TLBMEMPHY_write(proc->tlb, i, -1);
     }
   }
 
@@ -225,6 +274,16 @@ int tlbwrite(struct pcb_t * proc, BYTE data,
   int val;
   BYTE frmnum = -1;
 
+  // if(proc->tlb->tlb_fifo) {
+  //   struct node* temp = proc->tlb->tlb_fifo;
+  //   while(temp) {
+  //     printf("TLB FIFO: %d\n", temp->data); 
+  //     temp = temp->next;
+  //   }
+  // } else {
+  //   printf("TLB FIFO is NULL\n"); 
+  // }
+
   /* TODO retrieve TLB CACHED frame num of accessing page(s))*/
   /* by using tlb_cache_read()/tlb_cache_write()
   frmnum is return value of tlb_cache_read/write value*/
@@ -260,7 +319,7 @@ int tlbwrite(struct pcb_t * proc, BYTE data,
     //tlb_cache_write(proc->tlb, proc, pgn);
   }
   printf("\n");
-  float rate=stat_hit_time/(stat_hit_time+ stat_miss_time);
+  float rate = (float)stat_hit_time / (stat_hit_time+ stat_miss_time);
   printf("Rate hit now: %.2f\n",rate);
   printf("\n");
   
@@ -305,6 +364,17 @@ int tlbwrite(struct pcb_t * proc, BYTE data,
 
   /* TODO update TLB CACHED with frame num of recent accessing page(s)*/
   /* by using tlb_cache_read()/tlb_cache_write()*/
+
+  // if(proc->tlb->tlb_fifo) {
+  //   struct node* temp = proc->tlb->tlb_fifo;
+  //   while(temp) {
+  //     int idx = temp->data;
+  //     printf("TLB FIFO: pgnum = %d\n", proc->tlb->help[idx].pgnum); 
+  //     temp = temp->next;
+  //   }
+  // } else {
+  //   printf("TLB FIFO is NULL\n"); 
+  // }
 
   return val;
 }
