@@ -1,0 +1,7 @@
+2 6
+alloc 100 1
+alloc 80 3
+alloc 150 2
+free 1
+free 2
+free 3

@@ -1,0 +1,5 @@
+2 4
+alloc 10 2
+alloc 15 1
+write 20 1 10
+free 2s
