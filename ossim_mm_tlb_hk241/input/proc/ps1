@@ -1,0 +1,4 @@
+1 3
+alloc 100 1
+write 15 1 10
+calc
