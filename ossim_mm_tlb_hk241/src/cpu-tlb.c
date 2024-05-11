@@ -33,7 +33,7 @@ int tlb_flush_tlb_of(struct pcb_t *proc, struct memphy_struct * mp)
   // Lặp qua tất cả các trang trong cache TLB
     for (int i = 0; i < mp->maxsz; i++) {
         // Đặt các giá trị của mỗi trang về trạng thái mặc định
-        mp->storage[i] = -1; // Hoặc giá trị mặc định phù hợp với loại dữ liệu
+        mp->help[i].valid = 0;
     }
     return 0;
 }
@@ -144,8 +144,8 @@ int tlbfree_data(struct pcb_t *proc, uint32_t reg_index)
           }
       }
 
-
-      TLBMEMPHY_write(proc->tlb, i, -1);
+      proc->tlb->help[i].fpn = -1; 
+      //TLBMEMPHY_write(proc->tlb, i, -1);
     }
   }
 

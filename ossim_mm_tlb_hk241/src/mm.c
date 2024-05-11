@@ -390,7 +390,7 @@ int print_pgtbl(struct pcb_t *caller, uint32_t start, uint32_t end)
   for (int i = 0; i < caller->tlb->maxsz; i++) {
       struct tlbEntry* temp = caller->tlb->help;
       if (temp[i].valid != 0) {
-          printf("%-6d %-8d %-6d %-8d %-4d\n", i, temp[i].valid, temp[i].pid, temp[i].pgnum, caller->tlb->storage[i]);
+          printf("%-6d %-8d %-6d %-8d %-4d\n", i, temp[i].valid, temp[i].pid, temp[i].pgnum, temp[i].fpn);
       } else {
           printf("%-6d %-8d\n", i, 0);
       }
