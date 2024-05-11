@@ -52,13 +52,15 @@ int tlb_cache_read(struct memphy_struct * mp, int pid, int pgnum, BYTE *value)
     // int fpn = PAGING_FPN(pte);
 
     //printf("tlb_cache_read:: valid = %d, pid = %d, pgn = %d, fpn = %d\n", mp->help[pgnum].valid, mp->help[pgnum].pid, pgnum, mp->storage[pgnum]);
+pthread_mutex_lock(&mmvm_lock);
     for(int i = 0; i<mp->maxsz; i++) {
         if( mp->help[i].valid == 1 && mp->help[i].pid == pid && mp->help[i].pgnum == pgnum) 
             value = mp->help[i].fpn;
+        pthread_mutex_unlock(&mmvm_lock);
             return 0;
             // return TLBMEMPHY_read(mp, i, value);  // HIT
     }
-    
+pthread_mutex_unlock(&mmvm_lock);
     return -1;  
 }
 
@@ -78,7 +80,7 @@ int tlb_cache_write(struct memphy_struct *mp, int pid, int pgnum, BYTE value)
     */
     if (mp == NULL)
         return -1; // Tham số không hợp lệ hoặc mp không tồn tại
-
+pthread_mutex_lock(&mmvm_lock);
     for(int i = 0; i<mp->maxsz; i++) {
         if( mp->help[i].valid == 0 ) {    // có entry trống 
             mp->help[i].valid = 1;
@@ -93,6 +95,7 @@ int tlb_cache_write(struct memphy_struct *mp, int pid, int pgnum, BYTE value)
                 struct node* newNode = mp->tlb_fifo; 
                 if(newNode == NULL) {
                     printf("Error in cpu-tlbcache.c/ tlb_cache_write(): mp->tlb_fifo is NULL.\n");
+                    pthread_mutex_unlock(&mmvm_lock);
                     return -1;
                 }
                 while(newNode->next != NULL) newNode = newNode->next;
@@ -103,7 +106,7 @@ int tlb_cache_write(struct memphy_struct *mp, int pid, int pgnum, BYTE value)
 
             mp->help[i].fpn = value;
             //TLBMEMPHY_write(mp, i, value);
-
+        pthread_mutex_unlock(&mmvm_lock);
             return 0;
         }
     }
@@ -130,6 +133,7 @@ int tlb_cache_write(struct memphy_struct *mp, int pid, int pgnum, BYTE value)
         struct node* newNode = mp->tlb_fifo; 
         if(newNode == NULL) {
             printf("Error in cpu-tlbcache.c/ tlb_cache_write(): mp->tlb_fifo is NULL.\n");
+            pthread_mutex_unlock(&mmvm_lock);
             return -1;
         }
         while(newNode->next != NULL) newNode = newNode->next;
@@ -139,7 +143,7 @@ int tlb_cache_write(struct memphy_struct *mp, int pid, int pgnum, BYTE value)
     }
 
     free(victim);
-
+pthread_mutex_unlock(&mmvm_lock);
     return 0;
     //return frame number;
 }
@@ -208,6 +212,7 @@ int TLBMEMPHY_dump(struct memphy_struct * mp)
 
 
    printf("\t\tPHYSICAL MEMORY (TLB CACHE) DUMP :\n");
+pthread_mutex_lock(&mmvm_lock);
    for (int i = 0; i < mp->maxsz; ++i)
    {
       if (mp->help[i].fpn != -1)
@@ -216,7 +221,7 @@ int TLBMEMPHY_dump(struct memphy_struct * mp)
          printf("BYTE %08x: %d\n", i, mp->help[i].fpn);
       }
    }
-
+pthread_mutex_unlock(&mmvm_lock);
    printf("\t\tPHYSICAL MEMORY END-DUMP\n");
 
    return 0;

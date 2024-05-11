@@ -31,10 +31,12 @@ int tlb_change_all_page_tables_of(struct pcb_t *proc,  struct memphy_struct * mp
 int tlb_flush_tlb_of(struct pcb_t *proc, struct memphy_struct * mp)
 {
   // Lặp qua tất cả các trang trong cache TLB
+    pthread_mutex_lock(&mmvm_lock);
     for (int i = 0; i < mp->maxsz; i++) {
         // Đặt các giá trị của mỗi trang về trạng thái mặc định
         mp->help[i].valid = 0;
     }
+    pthread_mutex_unlock(&mmvm_lock);
     return 0;
 }
 
@@ -84,7 +86,10 @@ int tlballoc(struct pcb_t *proc, uint32_t size, uint32_t reg_index)
 #ifdef IODUMP
   printf("In tlballoc print:\n");
 
+  pthread_mutex_lock(&mmvm_lock);
   print_pgtbl(proc, 0, -1); // print max TBL
+  pthread_mutex_unlock(&mmvm_lock);
+
    printf("In tlballoc print end.\n");
 #endif
   //printf("pgnum = %d, fpn = %d.\n", pgnum, fpn);
@@ -120,6 +125,7 @@ int tlbfree_data(struct pcb_t *proc, uint32_t reg_index)
   int address = proc->mm->symrgtbl[reg_index].rg_start;
   int pgnum = PAGING_PGN(address);
 
+  pthread_mutex_lock(&mmvm_lock);
   for(int i = 0; i<proc->tlb->maxsz; i++) {
     if( proc->tlb->help[i].valid == 1 && proc->tlb->help[i].pid == proc->pid && proc->tlb->help[i].pgnum == pgnum) {
       proc->tlb->help[i].valid == 0;
@@ -148,7 +154,7 @@ int tlbfree_data(struct pcb_t *proc, uint32_t reg_index)
       //TLBMEMPHY_write(proc->tlb, i, -1);
     }
   }
-
+  pthread_mutex_unlock(&mmvm_lock);
   //printf("Error in tlbfree_data(): Không tìm thấy trong TLB.\n");
 
   return 0;
@@ -242,7 +248,11 @@ int tlbread(struct pcb_t * proc, uint32_t source,
     // tlb_cache_write(proc->tlb, proc->pid, des_pgnum, (BYTE) des_fpn, des_index); 
 printf("After reading from memory into TLB\n");
 #ifdef PAGETBL_DUMP
+
+  pthread_mutex_lock(&mmvm_lock);
   print_pgtbl(proc, 0, -1); //print max TBL
+  pthread_mutex_unlock(&mmvm_lock);
+
 #endif
   MEMPHY_dump(proc->mram);
 }
@@ -326,7 +336,11 @@ int tlbwrite(struct pcb_t * proc, BYTE data,
   printf("pgnum = %d, fpn = %d.\n", pgnum, frmnum);
   printf("before write:\n");
 #ifdef PAGETBL_DUMP
+
+pthread_mutex_lock(&mmvm_lock);
   print_pgtbl(proc, 0, -1); // print max TBL
+pthread_mutex_unlock(&mmvm_lock);
+
 #endif
   MEMPHY_dump(proc->mram);
 #endif
@@ -357,7 +371,10 @@ int tlbwrite(struct pcb_t * proc, BYTE data,
 
   printf("After write:\n");
 #ifdef PAGETBL_DUMP
+pthread_mutex_lock(&mmvm_lock);
   print_pgtbl(proc, 0, -1); //print max TBL
+pthread_mutex_unlock(&mmvm_lock);
+
 #endif
   MEMPHY_dump(proc->mram);
   
