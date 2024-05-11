@@ -54,10 +54,11 @@ int tlb_cache_read(struct memphy_struct * mp, int pid, int pgnum, BYTE *value)
     //printf("tlb_cache_read:: valid = %d, pid = %d, pgn = %d, fpn = %d\n", mp->help[pgnum].valid, mp->help[pgnum].pid, pgnum, mp->storage[pgnum]);
 pthread_mutex_lock(&mmvm_lock);
     for(int i = 0; i<mp->maxsz; i++) {
-        if( mp->help[i].valid == 1 && mp->help[i].pid == pid && mp->help[i].pgnum == pgnum) 
-            value = mp->help[i].fpn;
+        if( mp->help[i].valid == 1 && mp->help[i].pid == pid && mp->help[i].pgnum == pgnum) { 
+            *value = mp->help[i].fpn;
         pthread_mutex_unlock(&mmvm_lock);
             return 0;
+        }
             // return TLBMEMPHY_read(mp, i, value);  // HIT
     }
 pthread_mutex_unlock(&mmvm_lock);
