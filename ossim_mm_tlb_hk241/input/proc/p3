@@ -1,0 +1,4 @@
+15 3
+alloc 512 5
+alloc 300 6
+write 50 5 10
