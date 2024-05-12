@@ -240,10 +240,10 @@ int tlbread(struct pcb_t * proc, uint32_t source,
 
     destination = (uint32_t) data; 
     // frame fpn vừa được đọc và không có trong TLB nên cần thêm vào 
-    uint32_t miss_pte = proc->mm->pgd[pgnum];
-    int fpn = miss_pte & 0xFFF; //PAGING_FPN(miss_pte);
+    // uint32_t miss_pte = proc->mm->pgd[pgnum];
+    // int fpn = miss_pte & 0xFFF; //PAGING_FPN(miss_pte);
   
-    tlb_cache_write(proc->tlb, proc->pid, pgnum,(BYTE) fpn); 
+    // tlb_cache_write(proc->tlb, proc->pid, pgnum,(BYTE) fpn); 
     // int des_index = destination % proc->tlb->maxsz;
     // tlb_cache_write(proc->tlb, proc->pid, des_pgnum, (BYTE) des_fpn, des_index); 
 printf("After reading from memory into TLB\n");
@@ -260,15 +260,14 @@ printf("After reading from memory into TLB\n");
   /* TODO update TLB CACHED with frame num of recent accessing page(s)*/
   /* by using tlb_cache_read()/tlb_cache_write()*/
 
+  int occured = -1;
   int des_pgnum = PAGING_PGN(destination);
-  uint32_t pte = proc->mm->pgd[des_pgnum];
-  int des_fpn = pte & 0xFFF; //PAGING_FPN(pte);
-  // Register destionation vừa được sử dụng để ghi kết quả đọc được vào
-  // nên cần cập nhật TLB 
-
-  int des_index = destination % proc->tlb->maxsz;
-
-  //tlb_cache_write(proc->tlb, proc->pid, des_pgnum, (BYTE) des_fpn, des_index); 
+  tlb_cache_read(proc->tlb, proc->pid, des_pgnum, occured);
+  if(occured == -1) {
+    uint32_t pte = proc->mm->pgd[des_pgnum];
+    int des_fpn = pte & 0xFFF; //PAGING_FPN(pte);
+    tlb_cache_write(proc->tlb, proc->pid, des_pgnum, (BYTE) des_fpn); 
+  }
   return val;
 }
 
@@ -283,16 +282,6 @@ int tlbwrite(struct pcb_t * proc, BYTE data,
 {
   int val;
   BYTE frmnum = -1;
-
-  // if(proc->tlb->tlb_fifo) {
-  //   struct node* temp = proc->tlb->tlb_fifo;
-  //   while(temp) {
-  //     printf("TLB FIFO: %d\n", temp->data); 
-  //     temp = temp->next;
-  //   }
-  // } else {
-  //   printf("TLB FIFO is NULL\n"); 
-  // }
 
   /* TODO retrieve TLB CACHED frame num of accessing page(s))*/
   /* by using tlb_cache_read()/tlb_cache_write()
@@ -360,8 +349,7 @@ pthread_mutex_unlock(&mmvm_lock);
     
     uint32_t miss_pte = proc->mm->pgd[pgnum];
     int fpn = miss_pte & 0xFFF; //PAGING_FPN(miss_pte);
-    //printf("after: %u\n", miss_pte);
-    //printf("tlbwrite: pgnum = %d, fpn = %d\n", pgnum, fpn);
+
     // miss nên cần cập nhật TLB
     // int res = tlb_cache_write(proc->tlb, proc->pid, pgnum, fpn, index); 
     int res = tlb_cache_write(proc->tlb, proc->pid, pgnum, fpn); 
@@ -381,17 +369,6 @@ pthread_mutex_unlock(&mmvm_lock);
 
   /* TODO update TLB CACHED with frame num of recent accessing page(s)*/
   /* by using tlb_cache_read()/tlb_cache_write()*/
-
-  // if(proc->tlb->tlb_fifo) {
-  //   struct node* temp = proc->tlb->tlb_fifo;
-  //   while(temp) {
-  //     int idx = temp->data;
-  //     printf("TLB FIFO: pgnum = %d\n", proc->tlb->help[idx].pgnum); 
-  //     temp = temp->next;
-  //   }
-  // } else {
-  //   printf("TLB FIFO is NULL\n"); 
-  // }
 
   return val;
 }

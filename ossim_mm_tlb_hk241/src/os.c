@@ -162,14 +162,14 @@ static void read_config(const char * path) {
 	/* We provide here a back compatible with legacy OS simulatiom config file
 	 * In which, it have no addition config line for CPU_TLB
 	 */
-	tlbsz = 0x10000;
+	tlbsz = 0x10000/8;
 #else
 	/* Read input config of TLB size:
 	 * Format:
 	 *        CPU_TLBSZ
 	*/
 	// valid: 1 bit, pid: 16 bit, page num: 14 bit, frame num: 12 bit => 43 bit
-	// lấy gần nhất là 64 bit = 8 byte
+	// lấy là 64 bit = 8 byte
 	int temp = 0;
 	fscanf(file, "%d\n", &temp);
 	tlbsz = temp/8;
