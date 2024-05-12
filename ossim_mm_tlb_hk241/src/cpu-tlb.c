@@ -263,9 +263,9 @@ printf("After reading from memory into TLB\n");
   /* TODO update TLB CACHED with frame num of recent accessing page(s)*/
   /* by using tlb_cache_read()/tlb_cache_write()*/
 
-  int occured = -1;
+  BYTE occured = -1;
   int des_pgnum = PAGING_PGN(destination);
-  tlb_cache_read(proc->tlb, proc->pid, des_pgnum, occured);
+  tlb_cache_read(proc->tlb, proc->pid, des_pgnum, &occured);
   if(occured == -1) {
     uint32_t pte = proc->mm->pgd[des_pgnum];
     int des_fpn = pte & 0xFFF; //PAGING_FPN(pte);
