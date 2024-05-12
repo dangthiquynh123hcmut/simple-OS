@@ -53,7 +53,8 @@ int tlb_cache_read(struct memphy_struct * mp, int pid, int pgnum, BYTE *value)
 
     //printf("tlb_cache_read:: valid = %d, pid = %d, pgn = %d, fpn = %d\n", mp->help[pgnum].valid, mp->help[pgnum].pid, pgnum, mp->storage[pgnum]);
 pthread_mutex_lock(&mmvm_lock);
-    for(int i = 0; i<mp->maxsz; i++) {
+    int i;
+    for(i = 0; i<mp->maxsz; i++) {
         if( mp->help[i].valid == 1 && mp->help[i].pid == pid && mp->help[i].pgnum == pgnum) { 
             *value = mp->help[i].fpn;
         pthread_mutex_unlock(&mmvm_lock);
@@ -82,7 +83,8 @@ int tlb_cache_write(struct memphy_struct *mp, int pid, int pgnum, BYTE value)
     if (mp == NULL)
         return -1; // Tham số không hợp lệ hoặc mp không tồn tại
 pthread_mutex_lock(&mmvm_lock);
-    for(int i = 0; i<mp->maxsz; i++) {
+    int i;
+    for(i = 0; i<mp->maxsz; i++) {
         if( mp->help[i].valid == 0 ) {    // có entry trống 
             mp->help[i].valid = 1;
             mp->help[i].pid = pid;
@@ -214,7 +216,8 @@ int TLBMEMPHY_dump(struct memphy_struct * mp)
 
    printf("\t\tPHYSICAL MEMORY (TLB CACHE) DUMP :\n");
 pthread_mutex_lock(&mmvm_lock);
-   for (int i = 0; i < mp->maxsz; ++i)
+    int i;
+   for (i = 0; i < mp->maxsz; ++i)
    {
       if (mp->help[i].fpn != -1)
       {
@@ -236,7 +239,8 @@ int init_tlbmemphy(struct memphy_struct *mp, int max_size)
 {
    mp->help = (struct tlbEntry *)malloc(max_size*sizeof(struct tlbEntry));
    // invalid = 0, valid = 1 
-   for (int i = 0; i < max_size; i++) {
+    int i;
+   for (i = 0; i < max_size; i++) {
     mp->help[i].valid = 0;
    } 
    mp->maxsz = max_size;

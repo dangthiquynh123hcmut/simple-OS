@@ -93,8 +93,8 @@ int vmap_page_range(struct pcb_t *caller, // process call
 
   fpit = frames;
 
-  int fpn;
-  for (int pgit = 0; pgit < pgnum; pgit++) // Try to get [pgnum] frames for all pgn
+  int fpn, pgit;
+  for (pgit = 0; pgit < pgnum; pgit++) // Try to get [pgnum] frames for all pgn
   {
     int pgn = PAGING_PGN(addr);
     if (pg_getpage (caller->mm, pgn, &fpn, caller) != 0) 
@@ -271,7 +271,8 @@ int init_mm(struct mm_struct *mm, struct pcb_t *caller)
 
   // Initialize the symbol region tables
   // Avoid garbage values
-  for (int i = 0; i < PAGING_MAX_SYMTBL_SZ; ++i)
+  int i;
+  for (i = 0; i < PAGING_MAX_SYMTBL_SZ; ++i)
   {
     mm->symrgtbl[i].rg_start = -1;
     mm->symrgtbl[i].rg_end = -1;

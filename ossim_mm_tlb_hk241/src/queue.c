@@ -22,7 +22,8 @@ struct pcb_t * dequeue(struct queue_t * q) {
 
     struct pcb_t *newProc = malloc (sizeof (struct pcb_t));
     newProc = q->proc[0];
-    for (int i = 0; i < q->size; i++)
+    int i;
+    for (i = 0; i < q->size; i++)
     {
         q->proc[i] = q->proc[i + 1];
     }

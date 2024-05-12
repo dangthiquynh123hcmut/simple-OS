@@ -32,7 +32,8 @@ int tlb_flush_tlb_of(struct pcb_t *proc, struct memphy_struct * mp)
 {
   // Lặp qua tất cả các trang trong cache TLB
     pthread_mutex_lock(&mmvm_lock);
-    for (int i = 0; i < mp->maxsz; i++) {
+    int i;
+    for (i = 0; i < mp->maxsz; i++) {
         // Đặt các giá trị của mỗi trang về trạng thái mặc định
         mp->help[i].valid = 0;
     }
@@ -74,7 +75,8 @@ int tlballoc(struct pcb_t *proc, uint32_t size, uint32_t reg_index)
   int realSize = PAGING_PAGE_ALIGNSZ(size);
   int numOfPage = realSize / PAGING_PAGESZ;
 
-  for(int i = 0; i<numOfPage; i++) {
+  int i;
+  for(i = 0; i<numOfPage; i++) {
     int pgnum = PAGING_PGN(addr);
     uint32_t pte = proc->mm->pgd[pgnum];
     int fpn = pte & 0xFFF; //PAGING_FPN(pte);
@@ -126,7 +128,8 @@ int tlbfree_data(struct pcb_t *proc, uint32_t reg_index)
   int pgnum = PAGING_PGN(address);
 
   pthread_mutex_lock(&mmvm_lock);
-  for(int i = 0; i<proc->tlb->maxsz; i++) {
+  int i;
+  for(i = 0; i<proc->tlb->maxsz; i++) {
     if( proc->tlb->help[i].valid == 1 && proc->tlb->help[i].pid == proc->pid && proc->tlb->help[i].pgnum == pgnum) {
       proc->tlb->help[i].valid == 0;
 

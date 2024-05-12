@@ -206,7 +206,8 @@ int MEMPHY_dump(struct memphy_struct * mp)
                         // interleaved by external messages
     printf ("=== Physical Memory Dump ===\n");
     printf ("%7s  %10s:%7s\n", "fpn", "phyaddr", "value");
-    for (int phyaddr = 0; phyaddr < mp->maxsz; phyaddr++)
+   int phyaddr;
+    for (phyaddr = 0; phyaddr < mp->maxsz; phyaddr++)
         {
             // int fpn = -1;
             // Map fpn from phyaddr
